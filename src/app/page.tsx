@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import {
   Search,
   MapPin,
@@ -29,6 +30,7 @@ import {
   Award,
   ShieldCheck,
   Verified,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice, formatArabicDate, formatNumber, formatKilometers } from "@/lib/format";
+import { AuthDialog } from "@/components/auth-dialog";
+import { UserMenu } from "@/components/user-menu";
 
 // ===== TYPES =====
 type Category = {
@@ -101,6 +105,28 @@ type Listing = {
   comments: { id: string; username: string; content: string; createdAt: string }[];
 };
 
+// Listing shape returned by /api/listings/user (has _count instead of comments)
+type UserListing = {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  currency: string;
+  city: string;
+  district: string | null;
+  year: number | null;
+  kilometers: number | null;
+  condition: string | null;
+  images: string;
+  isFeatured: boolean;
+  views: number;
+  phone: string;
+  whatsapp: string | null;
+  createdAt: string;
+  category: { id: string; name: string; slug: string };
+  _count?: { comments: number; favorites: number };
+};
+
 // ===== CONSTANTS =====
 const CATEGORY_ICONS: Record<string, typeof Car> = {
   cars: Car,
@@ -129,6 +155,7 @@ const SAUDI_CITIES = [
 
 export default function HarajHomePage() {
   const { toast } = useToast();
+  const { data: session, status, update: updateSession } = useSession();
   const [listings, setListings] = useState<Listing[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,8 +173,12 @@ export default function HarajHomePage() {
   // UI state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  const isAuthenticated = status === "authenticated" && !!session?.user;
 
   // Fetch listings
   const fetchListings = async () => {
@@ -202,24 +233,80 @@ export default function HarajHomePage() {
      
   }, []);
 
+  // Fetch favorites when user logs in
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetch("/api/favorites")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.favorites) {
+            setFavorites(new Set(data.favorites.map((l: { id: string }) => l.id)));
+          }
+        })
+        .catch(() => {});
+    } else {
+      setFavorites(new Set());
+    }
+  }, [isAuthenticated]);
+
   // Featured listings (separate section)
   const featuredListings = useMemo(() => {
     return listings.filter((l) => l.isFeatured).slice(0, 6);
   }, [listings]);
 
-  // Toggle favorite
-  const toggleFavorite = (id: string) => {
+  // Toggle favorite (requires auth)
+  const toggleFavorite = async (id: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "تسجيل الدخول مطلوب",
+        description: "الرجاء تسجيل الدخول لحفظ المفضلة",
+        variant: "destructive",
+      });
+      setAuthDialogOpen(true);
+      return;
+    }
+
+    // Optimistic update
+    const wasFavorited = favorites.has(id);
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
+      if (wasFavorited) {
         next.delete(id);
-        toast({ title: "أُزيل من المفضلة", duration: 1500 });
       } else {
         next.add(id);
-        toast({ title: "أُضيف إلى المفضلة", duration: 1500 });
       }
       return next;
     });
+
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: id }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      toast({
+        title: data.favorited ? "أُضيف إلى المفضلة ❤️" : "أُزيل من المفضلة",
+        duration: 1500,
+      });
+    } catch {
+      // Revert on error
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (wasFavorited) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+        return next;
+      });
+      toast({
+        title: "خطأ",
+        description: "تعذر تحديث المفضلة",
+        variant: "destructive",
+      });
+    }
   };
 
   // Share listing
@@ -255,6 +342,37 @@ export default function HarajHomePage() {
     (minPrice ? 1 : 0) +
     (maxPrice ? 1 : 0) +
     (showFeaturedOnly ? 1 : 0);
+
+  // Handle "Add Listing" click — requires auth
+  const handleAddListingClick = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "تسجيل الدخول مطلوب",
+        description: "الرجاء تسجيل الدخول أو إنشاء حساب لنشر إعلان",
+        variant: "destructive",
+      });
+      setAuthDialogOpen(true);
+      return;
+    }
+    setAddDialogOpen(true);
+  };
+
+  // Open a listing from UserMenu (favorites/my listings)
+  const handleOpenListingFromMenu = (listing: UserListing) => {
+    setUserMenuOpen(false);
+    // Convert to the expected Listing type for the detail dialog
+    const fullListing: Listing = {
+      ...listing,
+      user: {
+        id: session?.user?.id || "",
+        username: session?.user?.name || "أنا",
+        isVerified: false,
+        rating: 5,
+      },
+      comments: [],
+    } as Listing;
+    setSelectedListing(fullListing);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -355,38 +473,45 @@ export default function HarajHomePage() {
               </div>
             </div>
 
-            {/* Add listing button */}
-            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="secondary"
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-cairo font-bold shrink-0"
-                >
-                  <Plus className="h-4 w-4 ml-1" />
-                  <span className="hidden sm:inline">أضف إعلان</span>
-                  <span className="sm:hidden">إعلان</span>
-                </Button>
-              </DialogTrigger>
-              <AddListingDialog
-                categories={categories}
-                onClose={() => setAddDialogOpen(false)}
-                onAdded={() => {
-                  setAddDialogOpen(false);
-                  fetchListings();
-                }}
-              />
-            </Dialog>
-
-            {/* User account */}
+            {/* Add listing button - requires auth */}
             <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary-foreground hover:bg-primary-foreground/10 hidden sm:flex"
-              aria-label="حسابي"
-              onClick={() => toast({ title: "قريباً", description: "تسجيل الدخول قيد التطوير", duration: 1500 })}
+              variant="secondary"
+              className="bg-accent text-accent-foreground hover:bg-accent/90 font-cairo font-bold shrink-0"
+              onClick={handleAddListingClick}
             >
-              <User className="h-5 w-5" />
+              <Plus className="h-4 w-4 ml-1" />
+              <span className="hidden sm:inline">أضف إعلان</span>
+              <span className="sm:hidden">إعلان</span>
             </Button>
+
+            {/* User account / login */}
+            {isAuthenticated ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:bg-primary-foreground/10 shrink-0 gap-2"
+                onClick={() => setUserMenuOpen(true)}
+              >
+                <Avatar className="h-7 w-7 border border-primary-foreground/30">
+                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-xs font-cairo">
+                    {session?.user?.name?.slice(0, 2) || "ح"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden md:inline font-cairo text-sm">
+                  {session?.user?.name}
+                </span>
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:bg-primary-foreground/10 shrink-0 gap-1.5"
+                onClick={() => setAuthDialogOpen(true)}
+              >
+                <LogIn className="h-5 w-5" />
+                <span className="hidden sm:inline font-cairo">دخول</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -672,7 +797,7 @@ export default function HarajHomePage() {
                   </p>
                   <div className="flex gap-2 justify-center">
                     <Button variant="outline" onClick={resetFilters}>مسح الفلاتر</Button>
-                    <Button onClick={() => setAddDialogOpen(true)}>
+                    <Button onClick={handleAddListingClick}>
                       <Plus className="h-4 w-4 ml-1" />
                       أضف إعلان
                     </Button>
@@ -706,6 +831,35 @@ export default function HarajHomePage() {
         onClose={() => setSelectedListing(null)}
         onToggleFavorite={toggleFavorite}
         isFavorite={selectedListing ? favorites.has(selectedListing.id) : false}
+      />
+
+      {/* ===== ADD LISTING DIALOG ===== */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <AddListingDialog
+          categories={categories}
+          onClose={() => setAddDialogOpen(false)}
+          onAdded={() => {
+            setAddDialogOpen(false);
+            fetchListings();
+            updateSession();
+          }}
+        />
+      </Dialog>
+
+      {/* ===== AUTH DIALOG ===== */}
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onSuccess={() => {
+          updateSession();
+        }}
+      />
+
+      {/* ===== USER MENU DIALOG ===== */}
+      <UserMenu
+        open={userMenuOpen}
+        onOpenChange={setUserMenuOpen}
+        onOpenListing={handleOpenListingFromMenu}
       />
 
       {/* ===== FOOTER ===== */}
@@ -1270,6 +1424,7 @@ function AddListingDialog({
   onAdded: () => void;
 }) {
   const { toast } = useToast();
+  const { data: session } = useSession();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -1510,13 +1665,16 @@ function AddListingDialog({
           </div>
         </div>
 
-        <div>
-          <Label className="mb-1.5 block">اسمك</Label>
-          <Input
-            value={form.username}
-            onChange={(e) => setForm({ ...form, username: e.target.value })}
-            placeholder="أبو محمد"
-          />
+        <div className="bg-muted/40 rounded-lg p-3 flex items-center gap-2 text-sm">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-cairo">
+              {session?.user?.name?.slice(0, 2) || "ح"}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="text-xs text-muted-foreground">يتم النشر باسم</div>
+            <div className="font-cairo font-bold">{session?.user?.name}</div>
+          </div>
         </div>
 
         {/* Images */}

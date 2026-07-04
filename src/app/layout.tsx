@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cairo, Tajawal } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "@/components/providers";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -42,8 +43,10 @@ export default function RootLayout({
       <body
         className={`${cairo.variable} ${tajawal.variable} font-tajawal antialiased bg-background text-foreground`}
       >
-        {children}
-        <Toaster />
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

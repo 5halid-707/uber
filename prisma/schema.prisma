@@ -1,4 +1,4 @@
-// Prisma schema for Haraj-like classifieds website
+// Prisma schema for Haraj-like classifieds website with auth
 
 generator client {
   provider = "prisma-client-js"
@@ -10,16 +10,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  phone     String
-  city      String?
-  avatar    String?
-  isVerified Boolean @default(false)
-  rating    Float    @default(5.0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  listings  Listing[]
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String?   @unique
+  phone         String    @unique
+  password      String
+  city          String?
+  avatar        String?
+  isVerified    Boolean   @default(false)
+  isAdmin       Boolean   @default(false)
+  rating        Float     @default(5.0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  listings      Listing[]
+  comments      Comment[]
+  favorites     Favorite[]
+  sessions      Session[]
+  accounts      Account[]
 }
 
 model Category {
@@ -35,38 +42,78 @@ model Category {
 }
 
 model Listing {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   title       String
   description String
   price       Int
-  currency    String   @default("ريال")
+  currency    String     @default("ريال")
   city        String
   district    String?
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
+  category    Category   @relation(fields: [categoryId], references: [id])
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  images      String   // JSON array of image URLs
-  status      String   @default("active") // active, sold, expired
-  isFeatured  Boolean  @default(false)
-  isVerified  Boolean  @default(false)
-  views       Int      @default(0)
-  year        Int?     // For cars - year of manufacture
-  kilometers  Int?     // For cars
-  condition   String?  // new, used
+  user        User       @relation(fields: [userId], references: [id])
+  images      String     // JSON array of image URLs
+  status      String     @default("active") // active, sold, expired
+  isFeatured  Boolean    @default(false)
+  isVerified  Boolean    @default(false)
+  views       Int        @default(0)
+  year        Int?       // For cars - year of manufacture
+  kilometers  Int?       // For cars
+  condition   String?    // new, used
   phone       String
   whatsapp    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   comments    Comment[]
+  favorites   Favorite[]
 }
 
 model Comment {
   id        String   @id @default(cuid())
   listingId String
   listing   Listing  @relation(fields: [listingId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
   username  String
   content   String
   phone     String?
   createdAt DateTime @default(now())
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  user      User     @relation(fields: [userId], references: [id])
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }

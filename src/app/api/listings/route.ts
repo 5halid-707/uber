@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -13,8 +15,7 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get("featured");
     const limit = parseInt(searchParams.get("limit") || "50");
 
-     
-    const where: any = { status: "active" };
+    const where: Record<string, unknown> = { status: "active" };
 
     if (category) {
       const cat = await db.category.findUnique({ where: { slug: category } });
@@ -35,26 +36,25 @@ export async function GET(request: NextRequest) {
 
     if (minPrice || maxPrice) {
       where.price = {};
-      if (minPrice) where.price.gte = parseInt(minPrice);
-      if (maxPrice) where.price.lte = parseInt(maxPrice);
+      if (minPrice) (where.price as Record<string, number>).gte = parseInt(minPrice);
+      if (maxPrice) (where.price as Record<string, number>).lte = parseInt(maxPrice);
     }
 
     if (featured === "true") {
       where.isFeatured = true;
     }
 
-     
-    const orderBy: any =
+    const orderBy =
       sort === "price_low"
-        ? { price: "asc" }
+        ? { price: "asc" as const }
         : sort === "price_high"
-          ? { price: "desc" }
+          ? { price: "desc" as const }
           : sort === "popular"
-            ? { views: "desc" }
-            : { createdAt: "desc" };
+            ? { views: "desc" as const }
+            : { createdAt: "desc" as const };
 
     const listings = await db.listing.findMany({
-      where,
+      where: where as Parameters<typeof db.listing.findMany>[0]["where"],
       orderBy,
       take: limit,
       include: {
@@ -72,6 +72,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "يجب تسجيل الدخول لنشر إعلان" },
+        { status: 401 }
+      );
+    }
+
+     
+    const userId = (session.user as any).id;
     const body = await request.json();
     const {
       title,
@@ -86,39 +96,37 @@ export async function POST(request: NextRequest) {
       condition,
       phone,
       whatsapp,
-      username,
     } = body;
 
-    // Find or create user
-    let user = await db.user.findFirst({
-      where: { phone },
-    });
+    // Validate required fields
+    if (!title?.trim() || !description?.trim() || !price || !categoryId || !phone) {
+      return NextResponse.json(
+        { error: "الرجاء ملء جميع الحقول المطلوبة" },
+        { status: 400 }
+      );
+    }
 
+    // Get user data
+    const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {
-      user = await db.user.create({
-        data: {
-          username: username || `user_${Date.now()}`,
-          phone,
-          city,
-        },
-      });
+      return NextResponse.json({ error: "المستخدم غير موجود" }, { status: 404 });
     }
 
     const listing = await db.listing.create({
       data: {
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         price: parseInt(price),
-        city,
-        district,
+        city: city || user.city || "الرياض",
+        district: district || null,
         categoryId,
-        userId: user.id,
+        userId,
         images: JSON.stringify(images || []),
         year: year ? parseInt(year) : null,
         kilometers: kilometers ? parseInt(kilometers) : null,
         condition: condition || null,
         phone,
-        whatsapp,
+        whatsapp: whatsapp || phone,
       },
       include: {
         category: true,

@@ -1,10 +1,12 @@
 // Seed script for Haraj-like classifieds website
+import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
 
 async function main() {
   console.log("🌱 Seeding database...");
 
   // Clean existing data
+  await db.favorite.deleteMany();
   await db.comment.deleteMany();
   await db.listing.deleteMany();
   await db.user.deleteMany();
@@ -87,26 +89,33 @@ async function main() {
   console.log("✅ Categories created");
 
   // ===== USERS =====
+  // All users have password: 123456
+  const defaultPassword = await bcrypt.hash("123456", 10);
   const users = [
-    { username: "أبو محمد", phone: "0551234567", city: "الرياض", isVerified: true, rating: 4.8 },
-    { username: "أبو عبدالله", phone: "0557654321", city: "جدة", isVerified: true, rating: 4.9 },
-    { username: "أبو خالد", phone: "0561112233", city: "الدمام", isVerified: false, rating: 4.3 },
-    { username: "أبو سعد", phone: "0574455667", city: "مكة", isVerified: true, rating: 4.7 },
-    { username: "أبو فيصل", phone: "0538899001", city: "المدينة", isVerified: false, rating: 4.5 },
-    { username: "أبو ناصر", phone: "0542233445", city: "الرياض", isVerified: true, rating: 5.0 },
-    { username: "أبو سلمان", phone: "0596677889", city: "الخبر", isVerified: true, rating: 4.6 },
-    { username: "أبو طلال", phone: "0583344556", city: "الطائف", isVerified: false, rating: 4.2 },
-    { username: "أبو ماجد", phone: "0512233445", city: "بريدة", isVerified: true, rating: 4.8 },
-    { username: "أبو راشد", phone: "0526677889", city: "أبها", isVerified: false, rating: 4.4 },
+    { username: "أبو محمد", phone: "0551234567", email: "abumohammed@haraj.sa", city: "الرياض", isVerified: true, rating: 4.8 },
+    { username: "أبو عبدالله", phone: "0557654321", email: "abuabdullah@haraj.sa", city: "جدة", isVerified: true, rating: 4.9 },
+    { username: "أبو خالد", phone: "0561112233", email: "abukhaled@haraj.sa", city: "الدمام", isVerified: false, rating: 4.3 },
+    { username: "أبو سعد", phone: "0574455667", email: "abusaad@haraj.sa", city: "مكة", isVerified: true, rating: 4.7 },
+    { username: "أبو فيصل", phone: "0538899001", email: "abufaisal@haraj.sa", city: "المدينة", isVerified: false, rating: 4.5 },
+    { username: "أبو ناصر", phone: "0542233445", email: "abunasser@haraj.sa", city: "الرياض", isVerified: true, rating: 5.0 },
+    { username: "أبو سلمان", phone: "0596677889", email: "abusulaiman@haraj.sa", city: "الخبر", isVerified: true, rating: 4.6 },
+    { username: "أبو طلال", phone: "0583344556", email: "abutalal@haraj.sa", city: "الطائف", isVerified: false, rating: 4.2 },
+    { username: "أبو ماجد", phone: "0512233445", email: "abumajid@haraj.sa", city: "بريدة", isVerified: true, rating: 4.8 },
+    { username: "أبو راشد", phone: "0526677889", email: "aburashed@haraj.sa", city: "أبها", isVerified: false, rating: 4.4 },
   ];
 
    
   const userMap: any = {};
   for (const u of users) {
-    const user = await db.user.create({ data: u });
+    const user = await db.user.create({
+      data: {
+        ...u,
+        password: defaultPassword,
+      },
+    });
     userMap[u.username] = user;
   }
-  console.log("✅ Users created");
+  console.log("✅ Users created (password for all: 123456)");
 
   // ===== LISTINGS =====
   // Using Unsplash images for various items
