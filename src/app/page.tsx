@@ -77,6 +77,8 @@ import { AuthDialog } from "@/components/auth-dialog";
 import { UserMenu } from "@/components/user-menu";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { UserWallet } from "@/components/user-wallet";
+import { NotificationBell } from "@/components/notification-bell";
+import { PaymentDialog } from "@/components/payment-dialog";
 
 // ===== TYPES =====
 type Category = {
@@ -181,6 +183,13 @@ export default function HarajHomePage() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [payment, setPayment] = useState<{
+    open: boolean;
+    purpose: "featured_listing" | "wallet_topup";
+    amount: number;
+    listingId?: string;
+    listingTitle?: string;
+  }>({ open: false, purpose: "wallet_topup", amount: 100 });
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
@@ -495,6 +504,7 @@ export default function HarajHomePage() {
             {/* User account / login */}
             {isAuthenticated ? (
               <div className="flex items-center gap-1 shrink-0">
+                <NotificationBell />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -863,6 +873,16 @@ export default function HarajHomePage() {
         onClose={() => setSelectedListing(null)}
         onToggleFavorite={toggleFavorite}
         isFavorite={selectedListing ? favorites.has(selectedListing.id) : false}
+        onPromoteFeatured={(listingId, title, price) => {
+          setPayment({
+            open: true,
+            purpose: "featured_listing",
+            amount: price,
+            listingId,
+            listingTitle: title,
+          });
+          setSelectedListing(null);
+        }}
       />
 
       {/* ===== ADD LISTING DIALOG ===== */}
@@ -899,6 +919,20 @@ export default function HarajHomePage() {
 
       {/* ===== ADMIN DASHBOARD DIALOG ===== */}
       <AdminDashboard open={adminOpen} onOpenChange={setAdminOpen} />
+
+      {/* ===== PAYMENT DIALOG ===== */}
+      <PaymentDialog
+        open={payment.open}
+        onOpenChange={(open) => setPayment({ ...payment, open })}
+        purpose={payment.purpose}
+        amount={payment.amount}
+        listingId={payment.listingId}
+        listingTitle={payment.listingTitle}
+        onSuccess={() => {
+          fetchListings();
+          toast({ title: "تمت العملية بنجاح ✓", duration: 2000 });
+        }}
+      />
 
       {/* ===== FOOTER ===== */}
       <footer className="mt-auto bg-primary text-primary-foreground">
@@ -1120,11 +1154,13 @@ function ListingDetailDialog({
   onClose,
   onToggleFavorite,
   isFavorite,
+  onPromoteFeatured,
 }: {
   listing: Listing | null;
   onClose: () => void;
   onToggleFavorite: (id: string) => void;
   isFavorite: boolean;
+  onPromoteFeatured?: (listingId: string, title: string, price: number) => void;
 }) {
   const { toast } = useToast();
   const [activeImage, setActiveImage] = useState(0);
@@ -1367,6 +1403,24 @@ function ListingDetailDialog({
                 واتساب
               </Button>
             </div>
+
+            {/* Promote to Featured button (only if not already featured) */}
+            {!listing.isFeatured && onPromoteFeatured && (
+              <Button
+                variant="outline"
+                className="w-full h-11 text-sm border-amber-400 text-amber-700 hover:bg-amber-50 bg-amber-50/30"
+                onClick={() => onPromoteFeatured(listing.id, listing.title, 50)}
+              >
+                <Award className="h-4 w-4 ml-2" />
+                ترقية الإعلان لمميز - 50 ريال (مدى / Apple Pay)
+              </Button>
+            )}
+            {listing.isFeatured && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-2 text-sm text-amber-800">
+                <Award className="h-4 w-4" />
+                <span>هذا الإعلان مميز بالفعل ✓</span>
+              </div>
+            )}
           </div>
         </div>
 

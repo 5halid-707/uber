@@ -29,8 +29,10 @@ import {
   Copy,
   CreditCard,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import { formatPrice, formatArabicDate, formatNumber } from "@/lib/format";
+import { PaymentDialog } from "@/components/payment-dialog";
 
 type BankAccount = {
   id: string;
@@ -111,6 +113,12 @@ export function UserWallet({
     amount: "",
     reference: "",
     description: "",
+  });
+
+  // Quick electronic payment (Mada/Apple Pay topup)
+  const [quickPayment, setQuickPayment] = useState<{ open: boolean; amount: number }>({
+    open: false,
+    amount: 100,
   });
 
   const fetchAll = async () => {
@@ -313,7 +321,7 @@ export function UserWallet({
                     onClick={() => setShowDeposit(true)}
                   >
                     <ArrowDownToLine className="h-5 w-5 ml-2" />
-                    إيداع رصيد
+                    إيداع بنكي
                   </Button>
                   <Button
                     className="h-14 text-base font-cairo"
@@ -324,6 +332,43 @@ export function UserWallet({
                     سحب رصيد
                   </Button>
                 </div>
+
+                {/* Quick electronic payment - Mada/Apple Pay */}
+                <Card className="p-3 bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-purple-600 text-white rounded-lg p-1.5">
+                        <Zap className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-cairo font-bold text-sm">شحن فوري عبر مدى / Apple Pay</h4>
+                        <p className="text-xs text-muted-foreground">الرصيد يضاف فوراً لمحفظتك</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {[50, 100, 200, 500].map((amt) => (
+                      <Button
+                        key={amt}
+                        variant="outline"
+                        size="sm"
+                        className="border-purple-300 hover:bg-purple-100 text-purple-700 font-cairo text-xs"
+                        onClick={() => setQuickPayment({ open: true, amount: amt })}
+                      >
+                        {amt} ريال
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-purple-300 hover:bg-purple-100 text-purple-700 font-cairo"
+                    onClick={() => setQuickPayment({ open: true, amount: 100 })}
+                  >
+                    <CreditCard className="h-4 w-4 ml-2" />
+                    مبلغ مخصص
+                  </Button>
+                </Card>
 
                 {/* Admin bank info for deposits */}
                 {settings && settings.adminIBAN && (
@@ -735,6 +780,17 @@ export function UserWallet({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Quick electronic payment dialog (Mada/Apple Pay) */}
+      <PaymentDialog
+        open={quickPayment.open}
+        onOpenChange={(open) => setQuickPayment({ ...quickPayment, open })}
+        purpose="wallet_topup"
+        amount={quickPayment.amount}
+        onSuccess={() => {
+          fetchAll();
+        }}
+      />
     </Dialog>
   );
 }

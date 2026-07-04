@@ -6,6 +6,8 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // Clean existing data
+  await db.notification.deleteMany();
+  await db.payment.deleteMany();
   await db.transaction.deleteMany();
   await db.bankAccount.deleteMany();
   await db.siteSettings.deleteMany();
@@ -672,6 +674,93 @@ async function main() {
     }
   }
   console.log("✅ Comments created");
+
+  // ===== NOTIFICATIONS =====
+  // Sample notifications for Abu Sattam
+  const abuSattam = userMap["أبو سطام"];
+  if (abuSattam) {
+    const notifications = [
+      {
+        userId: abuSattam.id,
+        type: "system",
+        title: "مرحباً بك في حراج! 🎉",
+        message: "أهلاً أبو سطام، تم تفعيل حسابك كأدمن. يمكنك إدارة الموقع بالكامل من لوحة التحكم.",
+        isRead: false,
+        createdAt: new Date(Date.now() - 5 * 60 * 1000),
+      },
+      {
+        userId: abuSattam.id,
+        type: "comment",
+        title: "تعليق جديد على إعلانك 💬",
+        message: "أبو فيصل علّق على إعلانك \"تويوتا كامري 2022 فل كامل\": هل السعر قابل للتفاوض؟",
+        isRead: false,
+        link: abuSattam.id,
+        createdAt: new Date(Date.now() - 30 * 60 * 1000),
+      },
+      {
+        userId: abuSattam.id,
+        type: "favorite",
+        title: "إعلانك أُعجب به أحدهم ❤️",
+        message: "أبو عبدالله أضاف إعلانك \"فيلا دورين 400م بالرياض\" إلى المفضلة.",
+        isRead: true,
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      },
+      {
+        userId: abuSattam.id,
+        type: "payment",
+        title: "تمت عملية دفع بنجاح ✓",
+        message: "تم استلام 50 ريال مقابل ترقية إعلان \"ناقة أصيلة بكر\" لمميز عبر مدى.",
+        isRead: true,
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      },
+    ];
+    for (const n of notifications) {
+      await db.notification.create({ data: n });
+    }
+    console.log("✅ Notifications created");
+  }
+
+  // ===== SAMPLE PAYMENTS =====
+  // Sample completed payments for reports
+  const allUsers = await db.user.findMany();
+  const sampleListings = await db.listing.findMany({ take: 5 });
+
+  const payments = [
+    { userId: abuSattam.id, purpose: "featured_listing", listingId: sampleListings[0]?.id, amount: 50, method: "mada", cardLast4: "1234", cardBrand: "mada", status: "completed" },
+    { userId: allUsers[1]?.id, purpose: "featured_listing", listingId: sampleListings[1]?.id, amount: 50, method: "apple_pay", cardLast4: null, cardBrand: null, status: "completed" },
+    { userId: allUsers[2]?.id, purpose: "wallet_topup", listingId: null, amount: 200, method: "visa", cardLast4: "5678", cardBrand: "visa", status: "completed" },
+    { userId: allUsers[3]?.id, purpose: "wallet_topup", listingId: null, amount: 100, method: "mastercard", cardLast4: "9012", cardBrand: "mastercard", status: "completed" },
+    { userId: allUsers[4]?.id, purpose: "featured_listing", listingId: sampleListings[2]?.id, amount: 50, method: "mada", cardLast4: "3456", cardBrand: "mada", status: "completed" },
+  ];
+
+  for (const p of payments) {
+    if (!p.userId) continue;
+    const createdAt = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+    await db.payment.create({
+      data: {
+        ...p,
+        reference: `PAY-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        processedAt: new Date(createdAt.getTime() + 60000),
+        createdAt,
+      },
+    });
+  }
+  console.log("✅ Sample payments created");
+
+  // ===== SAMPLE BANK ACCOUNTS =====
+  if (abuSattam) {
+    await db.bankAccount.create({
+      data: {
+        userId: abuSattam.id,
+        bankName: "بنك الراجحي",
+        accountName: "أبو سطام",
+        iban: "SA1234567890123456789012",
+        accountNumber: "1234567890123",
+        isDefault: true,
+      },
+    });
+  }
+  console.log("✅ Sample bank accounts created");
 
   console.log("🌱 Seeding completed!");
   console.log(`📊 Total: ${categories.reduce((a, c) => a + 1 + (c.children?.length || 0), 0)} categories, ${users.length} users, ${listings.length} listings`);

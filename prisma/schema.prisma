@@ -30,6 +30,8 @@ model User {
   bankAccounts  BankAccount[]
   transactions  Transaction[]
   adminTransactions Transaction[] @relation("AdminTransactions")
+  notifications Notification[]
+  payments      Payment[]
 }
 
 model Category {
@@ -182,3 +184,48 @@ model SiteSettings {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// ===== NOTIFICATIONS SYSTEM =====
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // transaction, comment, favorite, system, payment, listing
+  title      String
+  message    String
+  link       String?  // optional URL or context
+  isRead     Boolean  @default(false)
+  // Optional related entity
+  relatedId  String?
+  relatedType String?
+  createdAt  DateTime @default(now())
+}
+
+// ===== ELECTRONIC PAYMENTS (Mada/Apple Pay/Visa/Mastercard) =====
+
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // What is being paid for
+  purpose         String   // featured_listing, wallet_topup, service_fee
+  listingId       String?  // for featured_listing
+  amount          Float
+  currency        String   @default("ريال")
+  // Payment method
+  method          String   // mada, apple_pay, visa, mastercard, stc_pay
+  // Card info (last 4 digits only, never store full card)
+  cardLast4       String?
+  cardBrand       String?  // mada, visa, mastercard
+  // Transaction reference (simulated)
+  reference       String   @unique
+  // Status
+  status          String   @default("pending") // pending, completed, failed, refunded
+  failureReason   String?
+  // Admin/processor info
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+

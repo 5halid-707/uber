@@ -36,8 +36,10 @@ import {
   MapPin,
   Settings,
   AlertCircle,
+  BarChart3,
 } from "lucide-react";
 import { formatPrice, formatArabicDate, formatNumber } from "@/lib/format";
+import { FinancialReports } from "@/components/financial-reports";
 
 type AdminStats = {
   totalUsers: number;
@@ -322,7 +324,7 @@ export function AdminDashboard({
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-2 sm:grid-cols-5 gap-1 mb-4">
+              <TabsList className="grid grid-cols-2 sm:grid-cols-6 gap-1 mb-4">
                 <TabsTrigger value="overview" className="font-cairo text-xs sm:text-sm">
                   <TrendingUp className="h-4 w-4 ml-1" />
                   نظرة عامة
@@ -343,6 +345,10 @@ export function AdminDashboard({
                       {txStats.pendingCount}
                     </Badge>
                   )}
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="font-cairo text-xs sm:text-sm">
+                  <BarChart3 className="h-4 w-4 ml-1" />
+                  التقارير
                 </TabsTrigger>
                 <TabsTrigger value="settings" className="font-cairo text-xs sm:text-sm">
                   <Settings className="h-4 w-4 ml-1" />
@@ -634,6 +640,11 @@ export function AdminDashboard({
                     ))
                   )}
                 </div>
+              </TabsContent>
+
+              {/* ===== REPORTS ===== */}
+              <TabsContent value="reports">
+                <FinancialReports />
               </TabsContent>
 
               {/* ===== SETTINGS ===== */}
