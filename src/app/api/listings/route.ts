@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
         title: title.trim(),
         description: description.trim(),
         price: parseInt(price),
-        city: city || user.city || "الرياض",
+        city: city || user.city || "جدة",
         district: district || null,
         categoryId,
         userId,
@@ -132,6 +133,14 @@ export async function POST(request: NextRequest) {
         category: true,
         user: true,
       },
+    });
+
+    // Log activity
+    await logActivity({
+      userId,
+      action: "listing_create",
+      description: `نشر إعلان جديد: ${title.trim()}`,
+      metadata: { listingId: listing.id, price: parseInt(price) },
     });
 
     return NextResponse.json({ listing });

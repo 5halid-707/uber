@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import {
   Dialog,
@@ -43,6 +43,7 @@ export function AuthDialog({
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Login form
   const [loginIdentifier, setLoginIdentifier] = useState("");
@@ -51,18 +52,29 @@ export function AuthDialog({
   // Register form
   const [regForm, setRegForm] = useState({
     username: "",
-    phone: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
     city: "جدة",
   });
 
+  // Capture referral code from URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) {
+        sessionStorage.setItem("referralCode", ref);
+      }
+    }
+  }, []);
+
   const handleLogin = async () => {
     if (!loginIdentifier.trim() || !loginPassword.trim()) {
       toast({
         title: "بيانات ناقصة",
-        description: "الرجاء إدخال الجوال/البريد وكلمة المرور",
+        description: "الرجاء إدخال البريد الإلكتروني وكلمة المرور",
         variant: "destructive",
       });
       return;
@@ -87,7 +99,6 @@ export function AuthDialog({
           title: "مرحباً بك! 👋",
           description: "تم تسجيل الدخول بنجاح",
         });
-        // Reset form
         setLoginIdentifier("");
         setLoginPassword("");
         onOpenChange(false);
@@ -104,13 +115,29 @@ export function AuthDialog({
     }
   };
 
-  const handleRegister = async () => {
-    const { username, phone, email, password, confirmPassword, city } = regForm;
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    signIn("google", { callbackUrl: "/" });
+  };
 
-    if (!username.trim() || !phone.trim() || !password.trim()) {
+  const handleRegister = async () => {
+    const { username, email, phone, password, confirmPassword, city } = regForm;
+
+    if (!username.trim() || !email.trim() || !password.trim()) {
       toast({
         title: "بيانات ناقصة",
-        description: "الرجاء ملء جميع الحقول المطلوبة",
+        description: "الرجاء ملء الاسم والبريد الإلكتروني وكلمة المرور",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast({
+        title: "البريد غير صحيح",
+        description: "الرجاء إدخال بريد إلكتروني صحيح",
         variant: "destructive",
       });
       return;
@@ -134,8 +161,8 @@ export function AuthDialog({
       return;
     }
 
-    // Validate Saudi phone format
-    if (!/^05\d{8}$/.test(phone)) {
+    // Validate Saudi phone format (if provided)
+    if (phone && !/^05\d{8}$/.test(phone)) {
       toast({
         title: "رقم الجوال غير صحيح",
         description: "يجب أن يبدأ الرقم بـ 05 ويتكون من 10 أرقام",
@@ -146,15 +173,21 @@ export function AuthDialog({
 
     setLoading(true);
     try {
+      // Get referral code from sessionStorage if exists
+      const referralCode = typeof window !== "undefined"
+        ? sessionStorage.getItem("referralCode") || undefined
+        : undefined;
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: username.trim(),
-          phone: phone.trim(),
-          email: email.trim() || undefined,
+          email: email.trim(),
+          phone: phone.trim() || undefined,
           password,
           city,
+          referralCode,
         }),
       });
 
@@ -172,7 +205,7 @@ export function AuthDialog({
 
       // Auto-login after registration
       const result = await signIn("credentials", {
-        identifier: phone.trim(),
+        identifier: email.trim(),
         password,
         redirect: false,
       });
@@ -188,11 +221,10 @@ export function AuthDialog({
           title: "أهلاً بك في حراج! 🎉",
           description: "تم إنشاء حسابك وتسجيل الدخول بنجاح",
         });
-        // Reset form
         setRegForm({
           username: "",
-          phone: "",
           email: "",
+          phone: "",
           password: "",
           confirmPassword: "",
           city: "جدة",
@@ -221,6 +253,28 @@ export function AuthDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {/* Google Login Button */}
+        <Button
+          variant="outline"
+          className="w-full h-12 font-cairo border-2 hover:bg-muted/50"
+          onClick={handleGoogleLogin}
+          disabled={googleLoading || loading}
+        >
+          <svg className="h-5 w-5 ml-2" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          {googleLoading ? "جارٍ التحويل لـ Google..." : "متابعة بحساب Google"}
+        </Button>
+
+        <div className="flex items-center gap-2 my-2">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground">أو</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
           <TabsList className="grid grid-cols-2 w-full">
             <TabsTrigger value="login" className="font-cairo">
@@ -242,14 +296,14 @@ export function AuthDialog({
             </div>
 
             <div>
-              <Label className="mb-1.5 block">الجوال أو البريد الإلكتروني *</Label>
+              <Label className="mb-1.5 block">البريد الإلكتروني *</Label>
               <div className="relative">
-                <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="text"
+                  type="email"
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
-                  placeholder="05xxxxxxxx أو email@example.com"
+                  placeholder="email@example.com"
                   className="pr-10"
                   dir="ltr"
                   onKeyDown={(e) => {
@@ -284,9 +338,9 @@ export function AuthDialog({
             </div>
 
             <div className="bg-muted/40 rounded-lg p-3 text-sm">
-              <p className="font-cairo font-bold mb-1">حسابات تجريبية:</p>
+              <p className="font-cairo font-bold mb-1">حساب تجريبي (الأدمن):</p>
               <p className="text-xs text-muted-foreground" dir="ltr">
-                📞 0551234567 (أبو محمد)
+                📧 abosattam@haraj.sa
               </p>
               <p className="text-xs text-muted-foreground" dir="ltr">
                 🔑 كلمة المرور: 123456
@@ -318,14 +372,29 @@ export function AuthDialog({
                   type="text"
                   value={regForm.username}
                   onChange={(e) => setRegForm({ ...regForm, username: e.target.value })}
-                  placeholder="أبو محمد"
+                  placeholder="أبو سطام"
                   className="pr-10"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="mb-1.5 block">رقم الجوال *</Label>
+              <Label className="mb-1.5 block">البريد الإلكتروني *</Label>
+              <div className="relative">
+                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  value={regForm.email}
+                  onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
+                  placeholder="email@example.com"
+                  className="pr-10"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="mb-1.5 block">رقم الجوال (اختياري)</Label>
               <div className="relative">
                 <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -336,21 +405,6 @@ export function AuthDialog({
                   className="pr-10"
                   dir="ltr"
                   maxLength={10}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-1.5 block">البريد الإلكتروني (اختياري)</Label>
-              <div className="relative">
-                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="email"
-                  value={regForm.email}
-                  onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
-                  placeholder="email@example.com"
-                  className="pr-10"
-                  dir="ltr"
                 />
               </div>
             </div>

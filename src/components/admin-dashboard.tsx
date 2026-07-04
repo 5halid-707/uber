@@ -37,9 +37,18 @@ import {
   Settings,
   AlertCircle,
   BarChart3,
+  Ticket,
+  Share2,
+  Activity,
+  Zap,
+  Radio,
 } from "lucide-react";
 import { formatPrice, formatArabicDate, formatNumber } from "@/lib/format";
 import { FinancialReports } from "@/components/financial-reports";
+import { CouponsTab } from "@/components/admin/coupons-tab";
+import { AffiliatesTab } from "@/components/admin/affiliates-tab";
+import { ActivityLogTab } from "@/components/admin/activity-log-tab";
+import { LiveStatsTab } from "@/components/admin/live-stats-tab";
 
 type AdminStats = {
   totalUsers: number;
@@ -324,10 +333,14 @@ export function AdminDashboard({
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-2 sm:grid-cols-6 gap-1 mb-4">
+              <TabsList className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-1 mb-4">
                 <TabsTrigger value="overview" className="font-cairo text-xs sm:text-sm">
                   <TrendingUp className="h-4 w-4 ml-1" />
                   نظرة عامة
+                </TabsTrigger>
+                <TabsTrigger value="livestats" className="font-cairo text-xs sm:text-sm">
+                  <Radio className="h-4 w-4 ml-1" />
+                  حية
                 </TabsTrigger>
                 <TabsTrigger value="users" className="font-cairo text-xs sm:text-sm">
                   <Users className="h-4 w-4 ml-1" />
@@ -346,9 +359,21 @@ export function AdminDashboard({
                     </Badge>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="coupons" className="font-cairo text-xs sm:text-sm">
+                  <Ticket className="h-4 w-4 ml-1" />
+                  الكوبونات
+                </TabsTrigger>
+                <TabsTrigger value="affiliates" className="font-cairo text-xs sm:text-sm">
+                  <Share2 className="h-4 w-4 ml-1" />
+                  المسوّقون
+                </TabsTrigger>
                 <TabsTrigger value="reports" className="font-cairo text-xs sm:text-sm">
                   <BarChart3 className="h-4 w-4 ml-1" />
                   التقارير
+                </TabsTrigger>
+                <TabsTrigger value="activity" className="font-cairo text-xs sm:text-sm">
+                  <Activity className="h-4 w-4 ml-1" />
+                  النشاطات
                 </TabsTrigger>
                 <TabsTrigger value="settings" className="font-cairo text-xs sm:text-sm">
                   <Settings className="h-4 w-4 ml-1" />
@@ -640,6 +665,26 @@ export function AdminDashboard({
                     ))
                   )}
                 </div>
+              </TabsContent>
+
+              {/* ===== LIVE STATS ===== */}
+              <TabsContent value="livestats">
+                <LiveStatsTab />
+              </TabsContent>
+
+              {/* ===== COUPONS ===== */}
+              <TabsContent value="coupons">
+                <CouponsTab />
+              </TabsContent>
+
+              {/* ===== AFFILIATES ===== */}
+              <TabsContent value="affiliates">
+                <AffiliatesTab />
+              </TabsContent>
+
+              {/* ===== ACTIVITY LOG ===== */}
+              <TabsContent value="activity">
+                <ActivityLogTab />
               </TabsContent>
 
               {/* ===== REPORTS ===== */}

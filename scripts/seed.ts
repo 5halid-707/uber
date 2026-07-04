@@ -6,6 +6,11 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // Clean existing data
+  await db.couponRedemption.deleteMany();
+  await db.coupon.deleteMany();
+  await db.affiliateEarning.deleteMany();
+  await db.activityLog.deleteMany();
+  await db.banner.deleteMany();
   await db.notification.deleteMany();
   await db.payment.deleteMany();
   await db.transaction.deleteMany();
@@ -117,24 +122,24 @@ async function main() {
   // All users have password: 123456
   const defaultPassword = await bcrypt.hash("123456", 10);
   const users = [
-    { username: "أبو سطام", phone: "0575015019", email: "abosattam@haraj.sa", city: "جدة", isVerified: true, isAdmin: true, rating: 5.0 },
-    { username: "أبو عبدالله", phone: "0557654321", email: "abuabdullah@haraj.sa", city: "جدة", isVerified: true, rating: 4.9 },
-    { username: "أبو خالد", phone: "0561112233", email: "abukhaled@haraj.sa", city: "الدمام", isVerified: false, rating: 4.3 },
-    { username: "أبو سعد", phone: "0574455667", email: "abusaad@haraj.sa", city: "مكة", isVerified: true, rating: 4.7 },
-    { username: "أبو فيصل", phone: "0538899001", email: "abufaisal@haraj.sa", city: "المدينة", isVerified: false, rating: 4.5 },
-    { username: "أبو ناصر", phone: "0542233445", email: "abunasser@haraj.sa", city: "الرياض", isVerified: true, rating: 5.0 },
-    { username: "أبو سلمان", phone: "0596677889", email: "abusulaiman@haraj.sa", city: "الخبر", isVerified: true, rating: 4.6 },
-    { username: "أبو طلال", phone: "0583344556", email: "abutalal@haraj.sa", city: "الطائف", isVerified: false, rating: 4.2 },
-    { username: "أبو ماجد", phone: "0512233445", email: "abumajid@haraj.sa", city: "بريدة", isVerified: true, rating: 4.8 },
-    { username: "أبو راشد", phone: "0526677889", email: "aburashed@haraj.sa", city: "أبها", isVerified: false, rating: 4.4 },
+    { username: "أبو سطام", phone: "0575015019", email: "abosattam@haraj.sa", city: "جدة", isVerified: true, isAdmin: true, rating: 5.0, affiliateCode: "SATTAM100" },
+    { username: "أبو عبدالله", phone: "0557654321", email: "abuabdullah@haraj.sa", city: "جدة", isVerified: true, rating: 4.9, affiliateCode: "ABDULLAH1" },
+    { username: "أبو خالد", phone: "0561112233", email: "abukhaled@haraj.sa", city: "الدمام", isVerified: false, rating: 4.3, affiliateCode: "KHALED200" },
+    { username: "أبو سعد", phone: "0574455667", email: "abusaad@haraj.sa", city: "مكة", isVerified: true, rating: 4.7, affiliateCode: "SAAD300" },
+    { username: "أبو فيصل", phone: "0538899001", email: "abufaisal@haraj.sa", city: "المدينة", isVerified: false, rating: 4.5, affiliateCode: "FAISAL400" },
+    { username: "أبو ناصر", phone: "0542233445", email: "abunasser@haraj.sa", city: "الرياض", isVerified: true, rating: 5.0, affiliateCode: "NASSER500" },
+    { username: "أبو سلمان", phone: "0596677889", email: "abusulaiman@haraj.sa", city: "الخبر", isVerified: true, rating: 4.6, affiliateCode: "SULAIMAN6" },
+    { username: "أبو طلال", phone: "0583344556", email: "abutalal@haraj.sa", city: "الطائف", isVerified: false, rating: 4.2, affiliateCode: "TALAL700" },
+    { username: "أبو ماجد", phone: "0512233445", email: "abumajid@haraj.sa", city: "بريدة", isVerified: true, rating: 4.8, affiliateCode: "MAJID800" },
+    { username: "أبو راشد", phone: "0526677889", email: "aburashed@haraj.sa", city: "أبها", isVerified: false, rating: 4.4, affiliateCode: "RASHED900" },
   ];
 
-   
   const userMap: any = {};
   for (const u of users) {
     const user = await db.user.create({
       data: {
         ...u,
+        isAdmin: u.isAdmin || false,
         password: defaultPassword,
       },
     });
@@ -761,6 +766,53 @@ async function main() {
     });
   }
   console.log("✅ Sample bank accounts created");
+
+  // ===== COUPONS =====
+  const coupons = [
+    { code: "WELCOME10", description: "خصم 10% للمستخدمين الجدد", type: "percentage", value: 10, maxRedemptions: 100, minAmount: 50, appliesTo: "all" },
+    { code: "FEATURED50", description: "خصم 50% على ترقية الإعلان المميز", type: "percentage", value: 50, maxRedemptions: 50, appliesTo: "featured_listing" },
+    { code: "TOPUP100", description: "خصم 20 ريال عند شحن المحفظة بـ 100+", type: "fixed", value: 20, maxRedemptions: 200, minAmount: 100, appliesTo: "wallet_topup" },
+    { code: "SUMMER2026", description: "عرض الصيف - خصم 15%", type: "percentage", value: 15, maxRedemptions: null, validUntil: new Date("2026-09-30"), appliesTo: "all" },
+  ];
+  for (const c of coupons) {
+    await db.coupon.create({ data: c });
+  }
+  console.log("✅ Coupons created");
+
+  // ===== AFFILIATE EARNINGS (sample) =====
+  const abuSattamUser = userMap["أبو سطام"];
+  const abuAbdullahUser = userMap["أبو عبدالله"];
+  if (abuSattamUser && abuAbdullahUser) {
+    // Abu Abdullah was referred by Abu Sattam
+    await db.user.update({
+      where: { id: abuAbdullahUser.id },
+      data: { referredById: abuSattamUser.id },
+    });
+
+    await db.affiliateEarning.create({
+      data: {
+        affiliateId: abuSattamUser.id,
+        referredId: abuAbdullahUser.id,
+        commissionRate: 10,
+        amount: 5,
+        status: "pending",
+      },
+    });
+    console.log("✅ Affiliate earnings created");
+  }
+
+  // ===== ACTIVITY LOG (sample) =====
+  if (abuSattamUser) {
+    const activities = [
+      { userId: abuSattamUser.id, action: "login", description: "تسجيل دخول: أبو سطام" },
+      { userId: abuSattamUser.id, action: "settings_update", description: "تحديث إعدادات الموقع" },
+      { userId: abuSattamUser.id, action: "listing_create", description: "نشر إعلان: ناقة أصيلة بكر" },
+    ];
+    for (const a of activities) {
+      await db.activityLog.create({ data: a });
+    }
+    console.log("✅ Activity logs created");
+  }
 
   console.log("🌱 Seeding completed!");
   console.log(`📊 Total: ${categories.reduce((a, c) => a + 1 + (c.children?.length || 0), 0)} categories, ${users.length} users, ${listings.length} listings`);

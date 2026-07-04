@@ -12,9 +12,9 @@ datasource db {
 model User {
   id            String    @id @default(cuid())
   username      String    @unique
-  email         String?   @unique
-  phone         String    @unique
-  password      String
+  email         String    @unique
+  phone         String?   @unique
+  password      String?
   city          String?
   avatar        String?
   isVerified    Boolean   @default(false)
@@ -32,6 +32,17 @@ model User {
   adminTransactions Transaction[] @relation("AdminTransactions")
   notifications Notification[]
   payments      Payment[]
+  // Affiliate system
+  affiliateCode String?   @unique
+  referredById  String?
+  referredBy    User?     @relation("AffiliateReferrals", fields: [referredById], references: [id])
+  referrals     User[]    @relation("AffiliateReferrals")
+  affiliateEarnings AffiliateEarning[] @relation("AffiliateEarningsAsAffiliate")
+  earningsAsReferred AffiliateEarning[] @relation("ReferredUser")
+  // Coupons
+  couponsRedeemed CouponRedemption[]
+  // Activity log
+  activities    ActivityLog[]
 }
 
 model Category {
@@ -227,5 +238,93 @@ model Payment {
   processedAt     DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ===== COUPONS SYSTEM =====
+
+model Coupon {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  description   String?
+  // Discount type
+  type          String   // percentage, fixed
+  value         Float    // percentage (0-100) or fixed amount in SAR
+  // Limits
+  maxRedemptions Int?    // null = unlimited
+  usedCount     Int      @default(0)
+  // Validity
+  minAmount     Float    @default(0) // minimum order amount
+  maxDiscount   Float?   // for percentage type, max discount cap
+  validFrom     DateTime @default(now())
+  validUntil    DateTime?
+  isActive      Boolean  @default(true)
+  // Applicable to
+  appliesTo     String   @default("all") // all, featured_listing, wallet_topup
+  // Relations
+  redemptions   CouponRedemption[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CouponRedemption {
+  id          String   @id @default(cuid())
+  couponId    String
+  coupon      Coupon   @relation(fields: [couponId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentId   String?  // related payment
+  discountAmount Float
+  createdAt   DateTime @default(now())
+
+  @@unique([couponId, userId]) // one coupon per user
+}
+
+// ===== AFFILIATE / MARKETER SYSTEM =====
+
+model AffiliateEarning {
+  id            String   @id @default(cuid())
+  affiliateId   String   // the marketer (User)
+  affiliate     User     @relation("AffiliateEarningsAsAffiliate", fields: [affiliateId], references: [id], onDelete: Cascade)
+  referredId    String   // the referred user
+  referred      User     @relation("ReferredUser", fields: [referredId], references: [id])
+  // Commission
+  commissionRate Float   // percentage, e.g. 10 = 10%
+  amount         Float   // earned amount in SAR
+  status         String  @default("pending") // pending, paid, cancelled
+  // Related transaction
+  transactionId  String?
+  paidAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ===== ACTIVITY LOG =====
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // login, register, listing_create, listing_delete, payment, withdrawal_request, etc.
+  description String
+  ipAddress   String?
+  userAgent   String?
+  metadata    String?  // JSON string with extra info
+  createdAt   DateTime @default(now())
+}
+
+// ===== BANNERS / ADS (for admin to manage) =====
+
+model Banner {
+  id          String   @id @default(cuid())
+  title       String
+  imageUrl    String
+  linkUrl     String?
+  position    String   @default("home_top") // home_top, home_middle, sidebar, category_top
+  isActive    Boolean  @default(true)
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
