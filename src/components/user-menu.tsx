@@ -300,7 +300,6 @@ export function UserMenu({
                   >
                     <div className="w-20 h-20 bg-muted rounded-md overflow-hidden shrink-0">
                       {images[0] ? (
-                         
                         <img src={images[0]} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -365,7 +364,6 @@ export function UserMenu({
                   >
                     <div className="w-20 h-20 bg-muted rounded-md overflow-hidden shrink-0">
                       {images[0] ? (
-                         
                         <img src={images[0]} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground">

@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
-  // Use JWT-based session (no database session storage needed for credentials provider)
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -23,7 +22,6 @@ export const authOptions: NextAuthOptions = {
 
         const { identifier, password } = credentials;
 
-        // Find user by phone or email
         const user = await db.user.findFirst({
           where: {
             OR: [{ phone: identifier }, { email: identifier }],
@@ -45,6 +43,8 @@ export const authOptions: NextAuthOptions = {
           email: user.email || user.phone,
           phone: user.phone,
           image: user.avatar || null,
+          isAdmin: user.isAdmin,
+          isVerified: user.isVerified,
         };
       },
     }),
@@ -53,17 +53,18 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-         
-        token.phone = (user as any).phone;
+        token.phone = (user as { phone?: string }).phone;
+        token.isAdmin = (user as { isAdmin?: boolean }).isAdmin || false;
+        token.isVerified = (user as { isVerified?: boolean }).isVerified || false;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-         
-        (session.user as any).id = token.id;
-         
-        (session.user as any).phone = token.phone;
+        (session.user as { id?: string }).id = token.id as string;
+        (session.user as { phone?: string }).phone = token.phone as string;
+        (session.user as { isAdmin?: boolean }).isAdmin = token.isAdmin as boolean;
+        (session.user as { isVerified?: boolean }).isVerified = token.isVerified as boolean;
       }
       return session;
     },

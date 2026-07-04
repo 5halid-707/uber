@@ -16,8 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, User, Phone, Lock, Mail, MapPin, UserPlus, LogIn } from "lucide-react";
 
 const SAUDI_CITIES = [
-  "الرياض",
   "جدة",
+  "الرياض",
   "مكة",
   "المدينة",
   "الدمام",
@@ -55,7 +55,7 @@ export function AuthDialog({
     email: "",
     password: "",
     confirmPassword: "",
-    city: "الرياض",
+    city: "جدة",
   });
 
   const handleLogin = async () => {
@@ -195,7 +195,7 @@ export function AuthDialog({
           email: "",
           password: "",
           confirmPassword: "",
-          city: "الرياض",
+          city: "جدة",
         });
         onOpenChange(false);
         onSuccess?.();

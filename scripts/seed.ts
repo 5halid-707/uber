@@ -6,11 +6,34 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // Clean existing data
+  await db.transaction.deleteMany();
+  await db.bankAccount.deleteMany();
+  await db.siteSettings.deleteMany();
   await db.favorite.deleteMany();
   await db.comment.deleteMany();
   await db.listing.deleteMany();
   await db.user.deleteMany();
   await db.category.deleteMany();
+
+  // ===== SITE SETTINGS =====
+  await db.siteSettings.create({
+    data: {
+      siteName: "حراج",
+      adminPhone: "0575015019",
+      adminWhatsApp: "0575015019",
+      adminEmail: "abosattam@haraj.sa",
+      adminCity: "جدة",
+      adminBankName: "البنك الأهلي السعودي",
+      adminAccountName: "أبو سطام",
+      adminIBAN: "SA0380000000608010167519",
+      adminAccountNumber: "60801016751900",
+      featuredPrice: 50,
+      withdrawalFee: 0,
+      minWithdrawal: 100,
+      welcomeMessage: "مرحباً بك في حراج! سوقك الأول للإعلانات المبوبة في السعودية.",
+    },
+  });
+  console.log("✅ Site settings created");
 
   // ===== CATEGORIES =====
   const categories = [
@@ -92,7 +115,7 @@ async function main() {
   // All users have password: 123456
   const defaultPassword = await bcrypt.hash("123456", 10);
   const users = [
-    { username: "أبو محمد", phone: "0551234567", email: "abumohammed@haraj.sa", city: "الرياض", isVerified: true, rating: 4.8 },
+    { username: "أبو سطام", phone: "0575015019", email: "abosattam@haraj.sa", city: "جدة", isVerified: true, isAdmin: true, rating: 5.0 },
     { username: "أبو عبدالله", phone: "0557654321", email: "abuabdullah@haraj.sa", city: "جدة", isVerified: true, rating: 4.9 },
     { username: "أبو خالد", phone: "0561112233", email: "abukhaled@haraj.sa", city: "الدمام", isVerified: false, rating: 4.3 },
     { username: "أبو سعد", phone: "0574455667", email: "abusaad@haraj.sa", city: "مكة", isVerified: true, rating: 4.7 },
@@ -125,8 +148,8 @@ async function main() {
       title: "تويوتا كامري 2022 فل كامل",
       description: "تويوتا كامري 2022 موديل فل اوبشن / شاشة / سقف بانوراما / كاميرا خلفية / تحكم صوتي على الدركسون / سنسر امامي وخلفي / دخول بدون مفتاح / تشغيل عن بعد / جلد / فتحة سقف / ماشية 45 الف كم / الوكالة / فحص / مطلوب فاصل",
       price: 85000,
-      city: "الرياض",
-      district: "النرجس",
+      city: "جدة",
+      district: "الروضة",
       category: "cars.toyota",
       images: [
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&q=80",
@@ -135,9 +158,9 @@ async function main() {
       year: 2022,
       kilometers: 45000,
       condition: "used",
-      username: "أبو محمد",
+      username: "أبو سطام",
       isFeatured: true,
-      whatsapp: "0551234567",
+      whatsapp: "0575015019",
     },
     {
       title: "نيسان باترول 2023 titanium",
@@ -178,7 +201,7 @@ async function main() {
       description: "مرسيدس C200 2020 باقة AMG / فل اوبشن / بانوراما / شاشة / هارمان كاردون / جلد / مقاعد كهربائية مبرودة / مكابح AMG / جنوط 19 / ماشية 55 الف كم / فحص / الوكالة",
       price: 195000,
       city: "الرياض",
-      district: "الياسمين",
+      district: "النسيم",
       category: "cars.mercedes",
       images: [
         "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&q=80",
@@ -244,8 +267,8 @@ async function main() {
       title: "شيفروليه تاهو 2023 LTZ",
       description: "شيفروليه تاهو 2023 LTZ فل اوبشن / 8 ركاب / دفع رباعي / شاشتين / كاميرا 360 / جلد مبرود / مقاعد كهربائية / سقف بانوراما / ماشية 15 الف كم / الوكالة",
       price: 295000,
-      city: "الرياض",
-      district: "الملقا",
+      city: "جدة",
+      district: "السلامة",
       category: "cars.chevrolet",
       images: [
         "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&q=80",
@@ -253,9 +276,9 @@ async function main() {
       year: 2023,
       kilometers: 15000,
       condition: "used",
-      username: "أبو محمد",
+      username: "أبو سطام",
       isFeatured: true,
-      whatsapp: "0551234567",
+      whatsapp: "0575015019",
     },
     {
       title: "كيا سيراتو 2022",
@@ -296,7 +319,7 @@ async function main() {
       description: "شقة جديدة 4 غرف نوم + مجلس + غرفة طعام + مطبخ مجهز + 3 دورات مياه + مصممة على الطراز المودرن / التشطيب سوبر ديلوكس / مصعد / موقف سيارة / شارع 20 / قريبة من الخدمات / التسليم فوري / الدفع نقد أو تقسيط",
       price: 650000,
       city: "الرياض",
-      district: "النرجس",
+      district: "الروضة",
       category: "realestate.apartments",
       images: [
         "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80",
@@ -311,17 +334,17 @@ async function main() {
       title: "فيلا دورين 400م بالرياض",
       description: "فيلا دورين 400 متر / 5 غرف نوم + مجلس + ملحق + مطبخ + 5 دورات مياه / تشطيب سوبر ديلوكس / مسبح / حديقة / موقف لسيارتين / بحري / شارع 30 / قريبة من المدارس والجامعات / السعر قابل للتفاوض",
       price: 2500000,
-      city: "الرياض",
-      district: "الياسمين",
+      city: "جدة",
+      district: "النسيم",
       category: "realestate.villas",
       images: [
         "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
         "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",
       ],
       condition: "new",
-      username: "أبو محمد",
+      username: "أبو سطام",
       isFeatured: true,
-      whatsapp: "0551234567",
+      whatsapp: "0575015019",
     },
     {
       title: "أرض سكنية 600م بجدة",
@@ -369,7 +392,7 @@ async function main() {
       description: "آيفون 15 برو ماكس 256 جيجا / لون تيتانيوم طبيعي / جديد / لم يفتح / مع كامل الملحقات / ضمان شركة / مع فواصل + شاحن أصلي + ساعة 9 سيريز + ايربودز برو 2",
       price: 5500,
       city: "الرياض",
-      district: "العليا",
+      district: "الزهراء",
       category: "electronics.phones",
       images: [
         "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&q=80",
@@ -411,15 +434,15 @@ async function main() {
       title: "سماعات سوني WH-1000XM5",
       description: "سماعات سوني WH-1000XM5 / عازلة للضوضاء / بلوتوث / بطارية تدوم 30 ساعة / لون أسود / جديدة / مع علبة + كابلات / ضمان وكيل",
       price: 1350,
-      city: "الرياض",
-      district: "الملز",
+      city: "جدة",
+      district: "الفيصلية",
       category: "electronics.accessories",
       images: [
         "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
       ],
       condition: "new",
-      username: "أبو محمد",
-      whatsapp: "0551234567",
+      username: "أبو سطام",
+      whatsapp: "0575015019",
     },
 
     // ===== FURNITURE =====
@@ -428,7 +451,7 @@ async function main() {
       description: "مجلس عربي 7 مقاعد / قماش مخمل فاخر / لون بيج / طقم كامل مع كنب + وسائد + سجاد / صناعة محلية / تشطيب فاخر / مناسب للمجالس الكبيرة / توصيل وتركيب",
       price: 8500,
       city: "الرياض",
-      district: "السلي",
+      district: "العزيزية",
       category: "furniture.majlis",
       images: [
         "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80",
@@ -456,15 +479,15 @@ async function main() {
       title: "مطبخ مجهز 5 متر",
       description: "مطبخ مجهز 5 متر / خشب MDF / لون رمادي مات / 10 خزائن + درج + رفوف / مع طاولة طعام + 6 كراسي / صناعة محلية / تركيب مجاني داخل الرياض / ضمان 5 سنوات",
       price: 15000,
-      city: "الرياض",
-      district: "الربيع",
+      city: "جدة",
+      district: "الشاطئ",
       category: "furniture.kitchens",
       images: [
         "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80",
       ],
       condition: "new",
-      username: "أبو محمد",
-      whatsapp: "0551234567",
+      username: "أبو سطام",
+      whatsapp: "0575015019",
     },
 
     // ===== JOBS =====
@@ -473,7 +496,7 @@ async function main() {
       description: "مطلوب محاسب / محاسبة للعمل بشركة كبرى بالرياض / خبرة 3 سنوات / إجادة برامج المحاسبة / معرفة بالضريبة والزكاة / راتب 6000 ريال + تأمين طبي + مواصلات / الفترة صباحية / إرسال السيرة الذاتية عبر الواتساب",
       price: 6000,
       city: "الرياض",
-      district: "الملز",
+      district: "الفيصلية",
       category: "jobs.accountant",
       images: [],
       username: "أبو ناصر",
@@ -507,15 +530,15 @@ async function main() {
       title: "ناقة أصيلة بكر",
       description: "ناقة أصيلة بكر / عمر 3 سنوات / من سلالة شلوح / صحية / مفرمة / مع شاهدة نسب / مناسبة للسباقات والذبح / السعر قابل للتفاوض البسيط",
       price: 35000,
-      city: "الرياض",
-      district: "الثمامة",
+      city: "جدة",
+      district: "الشاطئ",
       category: "animals.camels",
       images: [
         "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800&q=80",
       ],
-      username: "أبو محمد",
+      username: "أبو سطام",
       isFeatured: true,
-      whatsapp: "0551234567",
+      whatsapp: "0575015019",
     },
     {
       title: "حصان عربي أصيل",
@@ -563,7 +586,7 @@ async function main() {
       description: "نقل عفش داخل وخارج الرياض / فريق محترف / تغليف احترافي / فك وتركيب الأثاث / سيارات مغلة مختلفة الأحجام / أسعار مناسبة / خدمة 24 ساعة / تأمين على العفص",
       price: 500,
       city: "الرياض",
-      district: "السلي",
+      district: "العزيزية",
       category: "services.moving",
       images: [],
       username: "أبو ناصر",

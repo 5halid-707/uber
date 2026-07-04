@@ -31,6 +31,8 @@ import {
   ShieldCheck,
   Verified,
   LogIn,
+  Wallet,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +75,8 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice, formatArabicDate, formatNumber, formatKilometers } from "@/lib/format";
 import { AuthDialog } from "@/components/auth-dialog";
 import { UserMenu } from "@/components/user-menu";
+import { AdminDashboard } from "@/components/admin-dashboard";
+import { UserWallet } from "@/components/user-wallet";
 
 // ===== TYPES =====
 type Category = {
@@ -139,8 +143,8 @@ const CATEGORY_ICONS: Record<string, typeof Car> = {
 };
 
 const SAUDI_CITIES = [
-  "الرياض",
   "جدة",
+  "الرياض",
   "مكة",
   "المدينة",
   "الدمام",
@@ -175,10 +179,14 @@ export default function HarajHomePage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const isAuthenticated = status === "authenticated" && !!session?.user;
+   
+  const isAdmin = isAuthenticated && (session.user as any).isAdmin === true;
 
   // Fetch listings
   const fetchListings = async () => {
@@ -486,21 +494,45 @@ export default function HarajHomePage() {
 
             {/* User account / login */}
             {isAuthenticated ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary-foreground hover:bg-primary-foreground/10 shrink-0 gap-2"
-                onClick={() => setUserMenuOpen(true)}
-              >
-                <Avatar className="h-7 w-7 border border-primary-foreground/30">
-                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-xs font-cairo">
-                    {session?.user?.name?.slice(0, 2) || "ح"}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden md:inline font-cairo text-sm">
-                  {session?.user?.name}
-                </span>
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary-foreground hover:bg-primary-foreground/10"
+                  aria-label="محفظتي"
+                  title="محفظتي المالية"
+                  onClick={() => setWalletOpen(true)}
+                >
+                  <Wallet className="h-5 w-5" />
+                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary-foreground hover:bg-primary-foreground/10 bg-primary-foreground/10"
+                    aria-label="لوحة الأدمن"
+                    title="لوحة تحكم الأدمن"
+                    onClick={() => setAdminOpen(true)}
+                  >
+                    <Shield className="h-5 w-5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary-foreground hover:bg-primary-foreground/10 shrink-0 gap-2"
+                  onClick={() => setUserMenuOpen(true)}
+                >
+                  <Avatar className="h-7 w-7 border border-primary-foreground/30">
+                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-xs font-cairo">
+                      {session?.user?.name?.slice(0, 2) || "ح"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden md:inline font-cairo text-sm">
+                    {session?.user?.name}
+                  </span>
+                </Button>
+              </div>
             ) : (
               <Button
                 variant="ghost"
@@ -862,6 +894,12 @@ export default function HarajHomePage() {
         onOpenListing={handleOpenListingFromMenu}
       />
 
+      {/* ===== USER WALLET DIALOG ===== */}
+      <UserWallet open={walletOpen} onOpenChange={setWalletOpen} />
+
+      {/* ===== ADMIN DASHBOARD DIALOG ===== */}
+      <AdminDashboard open={adminOpen} onOpenChange={setAdminOpen} />
+
       {/* ===== FOOTER ===== */}
       <footer className="mt-auto bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 py-8">
@@ -910,15 +948,15 @@ export default function HarajHomePage() {
               <ul className="space-y-2 text-sm text-primary-foreground/80">
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  <span>920000000</span>
+                  <span dir="ltr">0575015019</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <MessageCircle className="h-4 w-4" />
-                  <span>واتساب: 0550000000</span>
+                  <span>واتساب: <span dir="ltr">0575015019</span></span>
                 </li>
                 <li className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  <span>الرياض، المملكة العربية السعودية</span>
+                  <span>جدة، المملكة العربية السعودية</span>
                 </li>
               </ul>
             </div>
@@ -1430,7 +1468,7 @@ function AddListingDialog({
     title: "",
     description: "",
     price: "",
-    city: "الرياض",
+    city: "جدة",
     district: "",
     categoryId: "",
     year: "",
