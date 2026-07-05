@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 
-type PaymentMethod = "mada" | "visa" | "mastercard" | "apple_pay" | "stc_pay";
+type PaymentMethod = "mada" | "visa" | "mastercard" | "apple_pay" | "stc_pay" | "paypal";
 
 type PaymentDialogProps = {
   open: boolean;
@@ -36,12 +36,13 @@ type PaymentDialogProps = {
   onSuccess?: () => void;
 };
 
-const METHODS: { id: PaymentMethod; name: string; icon: React.ReactNode; color: string }[] = [
-  { id: "mada", name: "مدى", icon: <span className="font-bold text-sm">مدى</span>, color: "bg-green-600" },
-  { id: "apple_pay", name: "Apple Pay", icon: <Apple className="h-4 w-4" />, color: "bg-black" },
-  { id: "visa", name: "Visa", icon: <span className="font-bold italic text-sm">VISA</span>, color: "bg-blue-600" },
-  { id: "mastercard", name: "Mastercard", icon: <div className="flex"><div className="w-4 h-4 rounded-full bg-red-500" /><div className="w-4 h-4 rounded-full bg-yellow-400 -ml-2 opacity-80" /></div>, color: "bg-gray-700" },
-  { id: "stc_pay", name: "STC Pay", icon: <Smartphone className="h-4 w-4" />, color: "bg-purple-600" },
+const METHODS: { id: PaymentMethod; name: string; icon: React.ReactNode; color: string; desc: string }[] = [
+  { id: "mada", name: "مدى", icon: <span className="font-bold text-sm">مدى</span>, color: "bg-green-600", desc: "بطاقات مدى السعودية" },
+  { id: "stc_pay", name: "STC Pay", icon: <Smartphone className="h-4 w-4" />, color: "bg-purple-600", desc: "محفظة STC Pay" },
+  { id: "apple_pay", name: "Apple Pay", icon: <Apple className="h-4 w-4" />, color: "bg-black", desc: "دفع آبل" },
+  { id: "paypal", name: "PayPal", icon: <span className="font-bold text-xs italic">PayPal</span>, color: "bg-[#003087]", desc: "باي بال عالمي" },
+  { id: "visa", name: "Visa", icon: <span className="font-bold italic text-sm">VISA</span>, color: "bg-blue-600", desc: "فيزا" },
+  { id: "mastercard", name: "Mastercard", icon: <div className="flex"><div className="w-4 h-4 rounded-full bg-red-500" /><div className="w-4 h-4 rounded-full bg-yellow-400 -ml-2 opacity-80" /></div>, color: "bg-gray-700", desc: "ماستركارد" },
 ];
 
 export function PaymentDialog({
@@ -69,6 +70,7 @@ export function PaymentDialog({
 
   const isCardMethod = method === "mada" || method === "visa" || method === "mastercard";
   const isWalletMethod = method === "apple_pay" || method === "stc_pay";
+  const isPaypal = method === "paypal";
 
   const formatCardNumber = (val: string) => {
     const digits = val.replace(/\D/g, "").slice(0, 19);
@@ -325,6 +327,24 @@ export function PaymentDialog({
                     dir="ltr"
                     maxLength={10}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* PayPal method */}
+            {isPaypal && (
+              <div className="space-y-3 pt-2">
+                <Card className="p-4 bg-[#003087]/5 border-[#003087]/20 text-center">
+                  <div className="bg-[#003087] text-white rounded-lg w-16 h-16 flex items-center justify-center mx-auto mb-2">
+                    <span className="font-bold text-sm italic">PayPal</span>
+                  </div>
+                  <p className="font-cairo font-bold">PayPal</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    سيتم تحويلك إلى موقع PayPal لإتمام الدفع بأمان
+                  </p>
+                </Card>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 text-center">
+                  💡 PayPal يقبل: بطاقات مدى، Visa، Mastercard، ورصيد PayPal
                 </div>
               </div>
             )}
