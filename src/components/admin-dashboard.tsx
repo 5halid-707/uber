@@ -316,22 +316,25 @@ export function AdminDashboard({
   };
 
   if (!session?.user) return null;
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto p-0">
-        <DialogHeader className="p-4 border-b sticky top-0 bg-background z-10">
-          <DialogTitle className="text-right font-cairo text-xl flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            لوحة تحكم الأدمن
-            <Badge className="bg-primary text-primary-foreground mr-2">
-              <Shield className="h-3 w-3 ml-1" />
-              {session.user.name}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="p-4">
+    <div className="fixed inset-0 z-[100] bg-background overflow-y-auto">
+      <div className="sticky top-0 z-20 bg-primary text-primary-foreground shadow-lg">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              <h1 className="font-cairo font-bold text-lg">لوحة تحكم الأدمن</h1>
+              <Badge className="bg-primary-foreground/20 text-primary-foreground">{session.user.name}</Badge>
+            </div>
+            <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10" onClick={() => onOpenChange(false)}>
+              <X className="h-5 w-5 ml-1" />إغلاق
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="container mx-auto px-4 py-6">
           {loading ? (
             <div className="space-y-3">
               <div className="h-24 bg-muted animate-pulse rounded-lg" />
@@ -339,64 +342,20 @@ export function AdminDashboard({
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-3 sm:grid-cols-7 lg:grid-cols-13 gap-1 mb-4">
-                <TabsTrigger value="overview" className="font-cairo text-xs sm:text-sm">
-                  <TrendingUp className="h-4 w-4 ml-1" />
-                  نظرة عامة
-                </TabsTrigger>
-                <TabsTrigger value="livestats" className="font-cairo text-xs sm:text-sm">
-                  <Radio className="h-4 w-4 ml-1" />
-                  حية
-                </TabsTrigger>
-                <TabsTrigger value="users" className="font-cairo text-xs sm:text-sm">
-                  <Users className="h-4 w-4 ml-1" />
-                  المستخدمون
-                </TabsTrigger>
-                <TabsTrigger value="listings" className="font-cairo text-xs sm:text-sm">
-                  <FileText className="h-4 w-4 ml-1" />
-                  الإعلانات
-                </TabsTrigger>
-                <TabsTrigger value="transactions" className="font-cairo text-xs sm:text-sm">
-                  <DollarSign className="h-4 w-4 ml-1" />
-                  التحويلات
-                  {txStats.pendingCount > 0 && (
-                    <Badge className="bg-destructive text-white mr-1 text-xs px-1.5 py-0">
-                      {txStats.pendingCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="stores" className="font-cairo text-xs sm:text-sm">
-                  <Store className="h-4 w-4 ml-1" />
-                  المتاجر
-                </TabsTrigger>
-                <TabsTrigger value="trusted" className="font-cairo text-xs sm:text-sm">
-                  <Lock className="h-4 w-4 ml-1" />
-                  موثوق
-                </TabsTrigger>
-                <TabsTrigger value="bans" className="font-cairo text-xs sm:text-sm">
-                  <Ban className="h-4 w-4 ml-1" />
-                  الحظر
-                </TabsTrigger>
-                <TabsTrigger value="coupons" className="font-cairo text-xs sm:text-sm">
-                  <Ticket className="h-4 w-4 ml-1" />
-                  الكوبونات
-                </TabsTrigger>
-                <TabsTrigger value="affiliates" className="font-cairo text-xs sm:text-sm">
-                  <Share2 className="h-4 w-4 ml-1" />
-                  المسوّقون
-                </TabsTrigger>
-                <TabsTrigger value="reports" className="font-cairo text-xs sm:text-sm">
-                  <BarChart3 className="h-4 w-4 ml-1" />
-                  التقارير
-                </TabsTrigger>
-                <TabsTrigger value="activity" className="font-cairo text-xs sm:text-sm">
-                  <Activity className="h-4 w-4 ml-1" />
-                  النشاطات
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="font-cairo text-xs sm:text-sm">
-                  <Settings className="h-4 w-4 ml-1" />
-                  الإعدادات
-                </TabsTrigger>
+              <TabsList className="flex flex-wrap h-auto gap-1 mb-4 bg-transparent">
+                <TabsTrigger value="overview" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📊 نظرة عامة</TabsTrigger>
+                <TabsTrigger value="livestats" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📻 حية</TabsTrigger>
+                <TabsTrigger value="users" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">👥 المستخدمون</TabsTrigger>
+                <TabsTrigger value="listings" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📄 الإعلانات</TabsTrigger>
+                <TabsTrigger value="transactions" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">💰 التحويلات</TabsTrigger>
+                <TabsTrigger value="stores" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">🏪 المتاجر</TabsTrigger>
+                <TabsTrigger value="trusted" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">🔒 الشراء الموثوق</TabsTrigger>
+                <TabsTrigger value="bans" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">🚫 الحظر</TabsTrigger>
+                <TabsTrigger value="coupons" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">🎫 الكوبونات</TabsTrigger>
+                <TabsTrigger value="affiliates" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">🤝 المسوّقون</TabsTrigger>
+                <TabsTrigger value="reports" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📊 التقارير</TabsTrigger>
+                <TabsTrigger value="activity" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📝 النشاطات</TabsTrigger>
+                <TabsTrigger value="settings" className="font-cairo text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">⚙️ الإعدادات</TabsTrigger>
               </TabsList>
 
               {/* ===== OVERVIEW ===== */}
@@ -734,8 +693,7 @@ export function AdminDashboard({
             </Tabs>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }
 

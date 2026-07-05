@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get("maxPrice");
     const sort = searchParams.get("sort") || "newest";
     const featured = searchParams.get("featured");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     const where: Record<string, unknown> = { status: "active" };
 
@@ -54,17 +55,23 @@ export async function GET(request: NextRequest) {
             ? { views: "desc" as const }
             : { createdAt: "desc" as const };
 
-    const listings = await db.listing.findMany({
-      where: where as Parameters<typeof db.listing.findMany>[0]["where"],
-      orderBy,
-      take: limit,
-      include: {
-        category: true,
-        user: true,
-      },
-    });
+    const [listings, totalCount] = await Promise.all([
+      db.listing.findMany({
+        where: where as Parameters<typeof db.listing.findMany>[0]["where"],
+        orderBy,
+        take: limit,
+        skip: offset,
+        include: {
+          category: true,
+          user: true,
+        },
+      }),
+      db.listing.count({
+        where: where as Parameters<typeof db.listing.count>[0]["where"],
+      }),
+    ]);
 
-    return NextResponse.json({ listings });
+    return NextResponse.json({ listings, totalCount, hasMore: offset + limit < totalCount });
   } catch (error) {
     console.error("Error fetching listings:", error);
     return NextResponse.json({ error: "Failed to fetch listings" }, { status: 500 });

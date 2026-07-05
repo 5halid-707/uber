@@ -165,6 +165,8 @@ export default function HarajHomePage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
@@ -198,8 +200,13 @@ export default function HarajHomePage() {
   const isAdmin = isAuthenticated && (session.user as any).isAdmin === true;
 
   // Fetch listings
-  const fetchListings = async () => {
-    setLoading(true);
+  const fetchListings = async (reset = true) => {
+    if (reset) {
+      setLoading(true);
+      setOffset(0);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -210,11 +217,19 @@ export default function HarajHomePage() {
       if (maxPrice) params.set("maxPrice", maxPrice);
       if (showFeaturedOnly) params.set("featured", "true");
       params.set("sort", sortBy);
+      params.set("limit", "20");
+      if (!reset) params.set("offset", String(offset));
 
       const res = await fetch(`/api/listings?${params.toString()}`);
       if (!res.ok) throw new Error("فشل في تحميل الإعلانات");
       const data = await res.json();
-      setListings(data.listings || []);
+      if (reset) {
+        setListings(data.listings || []);
+      } else {
+        setListings(prev => [...prev, ...(data.listings || [])]);
+      }
+      setHasMore(data.hasMore || false);
+      if (!reset) setOffset(prev => prev + 20);
     } catch (e) {
       setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
       toast({
@@ -224,6 +239,7 @@ export default function HarajHomePage() {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -934,6 +950,7 @@ export default function HarajHomePage() {
 
               {/* Grid */}
               {!loading && !error && listings.length > 0 && (
+                <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {listings.map((listing) => (
                     <ListingCard
@@ -946,6 +963,28 @@ export default function HarajHomePage() {
                     />
                   ))}
                 </div>
+
+                {/* مشاهدة المزيد */}
+                {hasMore && (
+                  <div className="flex justify-center mt-6">
+                    <Button
+                      variant="outline"
+                      className="font-cairo border-primary text-primary hover:bg-primary/5 px-8 h-11"
+                      onClick={() => fetchListings(false)}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin ml-2" />
+                          جارٍ التحميل...
+                        </>
+                      ) : (
+                        "مشاهدة المزيد ..."
+                      )}
+                    </Button>
+                  </div>
+                )}
+                </>
               )}
             </section>
           </div>
@@ -1922,14 +1961,41 @@ function AddListingDialog({
           </div>
         </div>
 
-        {/* Images */}
+        {/* Images - رفع من الجهاز أو رابط */}
         <div>
           <Label className="mb-1.5 block">الصور</Label>
+          {/* رفع من الجهاز */}
+          <div className="mb-2">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files;
+                if (!files) return;
+                Array.from(files).forEach(file => {
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast({ title: "الصورة كبيرة جداً", description: "الحد الأقصى 5 ميجابايت", variant: "destructive" });
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setImages(prev => [...prev, reader.result as string]);
+                  };
+                  reader.readAsDataURL(file);
+                });
+                e.target.value = "";
+              }}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-cairo file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
+            />
+            <p className="text-xs text-muted-foreground mt-1">اضغط لاختيار صور من جهازك (حد أقصى 5 ميجابايت للصورة)</p>
+          </div>
+          {/* أو رابط */}
           <div className="flex gap-2">
             <Input
               value={form.imageUrl}
               onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-              placeholder="رابط صورة (URL)"
+              placeholder="أو الصق رابط صورة (URL)"
               dir="ltr"
             />
             <Button type="button" variant="secondary" onClick={handleAddImage}>
