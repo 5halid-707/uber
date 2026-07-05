@@ -576,14 +576,13 @@ export default function HarajHomePage() {
                 </Button>
                 {isAdmin && (
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-foreground hover:bg-muted bg-primary/10"
-                    aria-label="لوحة الأدمن"
-                    title="لوحة تحكم الأدمن"
+                    variant="default"
+                    size="sm"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 font-cairo text-xs gap-1 shrink-0"
                     onClick={() => setAdminOpen(true)}
                   >
-                    <Shield className="h-5 w-5 text-primary" />
+                    <Shield className="h-4 w-4" />
+                    <span className="hidden sm:inline">لوحة التحكم</span>
                   </Button>
                 )}
                 <Button

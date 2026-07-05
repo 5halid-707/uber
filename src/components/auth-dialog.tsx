@@ -337,12 +337,12 @@ export function AuthDialog({
               </div>
             </div>
 
-            <div className="bg-muted/40 rounded-lg p-3 text-sm">
-              <p className="font-cairo font-bold mb-1">حساب تجريبي (الأدمن):</p>
-              <p className="text-xs text-muted-foreground" dir="ltr">
-                📧 abosattam@haraj.sa
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm">
+              <p className="font-cairo font-bold mb-1 text-primary">حساب الأدمن (صاحب الموقع):</p>
+              <p className="text-xs text-foreground" dir="ltr">
+                📧 grouthhacker@gmail.com
               </p>
-              <p className="text-xs text-muted-foreground" dir="ltr">
+              <p className="text-xs text-foreground" dir="ltr">
                 🔑 كلمة المرور: 123456
               </p>
             </div>
