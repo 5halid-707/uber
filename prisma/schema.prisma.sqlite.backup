@@ -9,7 +9,7 @@ generator client {
 datasource db {
   // للمعاينة المحلية: sqlite
   // للإنتاج: postgresql
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
