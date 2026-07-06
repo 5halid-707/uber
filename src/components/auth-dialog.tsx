@@ -203,11 +203,12 @@ export function AuthDialog({
         return;
       }
 
-      // Auto-login after registration
+      // Auto-login after registration - use redirect for production compatibility
       const result = await signIn("credentials", {
         identifier: email.trim(),
         password,
         redirect: false,
+        callbackUrl: "/",
       });
 
       if (result?.error) {
@@ -216,7 +217,7 @@ export function AuthDialog({
           description: "الرجاء تسجيل الدخول يدوياً",
         });
         setActiveTab("login");
-      } else {
+      } else if (result?.ok) {
         toast({
           title: "أهلاً بك في حراج! 🎉",
           description: "تم إنشاء حسابك وتسجيل الدخول بنجاح",
