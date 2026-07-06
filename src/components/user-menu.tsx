@@ -142,7 +142,7 @@ export function UserMenu({
   }, [open, session]);
 
   const handleLogout = async () => {
-    await signOut({ redirect: false });
+    await signOut({ redirect: true, callbackUrl: "/" });
     toast({ title: "تم تسجيل الخروج", description: "إلى اللقاء!", duration: 2000 });
     onOpenChange(false);
   };
