@@ -86,6 +86,7 @@ export function AuthDialog({
         identifier: loginIdentifier.trim(),
         password: loginPassword,
         redirect: false,
+        callbackUrl: "/",
       });
 
       if (result?.error) {
@@ -94,7 +95,8 @@ export function AuthDialog({
           description: result.error,
           variant: "destructive",
         });
-      } else {
+        setLoading(false);
+      } else if (result?.ok || result?.url) {
         toast({
           title: "مرحباً بك! 👋",
           description: "تم تسجيل الدخول بنجاح",
@@ -102,7 +104,11 @@ export function AuthDialog({
         setLoginIdentifier("");
         setLoginPassword("");
         onOpenChange(false);
-        onSuccess?.();
+        // Reload page to update session
+        setTimeout(() => window.location.reload(), 500);
+      } else {
+        // Fallback: reload page
+        window.location.reload();
       }
     } catch {
       toast({
@@ -203,36 +209,22 @@ export function AuthDialog({
         return;
       }
 
-      // Auto-login after registration - use redirect for production compatibility
-      const result = await signIn("credentials", {
-        identifier: email.trim(),
-        password,
-        redirect: false,
-        callbackUrl: "/",
+      // After registration, switch to login tab instead of auto-login
+      // (auto-login with redirect:false doesn't work well on Netlify)
+      toast({
+        title: "تم إنشاء حسابك! ✓",
+        description: "الرجاء تسجيل الدخول الآن",
       });
-
-      if (result?.error) {
-        toast({
-          title: "تم إنشاء الحساب",
-          description: "الرجاء تسجيل الدخول يدوياً",
-        });
-        setActiveTab("login");
-      } else if (result?.ok) {
-        toast({
-          title: "أهلاً بك في حراج! 🎉",
-          description: "تم إنشاء حسابك وتسجيل الدخول بنجاح",
-        });
-        setRegForm({
-          username: "",
-          email: "",
-          phone: "",
-          password: "",
-          confirmPassword: "",
-          city: "جدة",
-        });
-        onOpenChange(false);
-        onSuccess?.();
-      }
+      setRegForm({
+        username: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+        city: "جدة",
+      });
+      setLoginIdentifier(email.trim());
+      setActiveTab("login");
     } catch {
       toast({
         title: "خطأ",
