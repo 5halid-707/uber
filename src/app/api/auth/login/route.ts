@@ -45,6 +45,13 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : "";
+    return NextResponse.json({ 
+      error: "خطأ في الخادم", 
+      debug: errMsg,
+      stack: errStack?.split("\n").slice(0, 5).join("\n"),
+      dbUrl: process.env.DATABASE_URL?.substring(0, 30) + "..."
+    }, { status: 500 });
   }
 }
