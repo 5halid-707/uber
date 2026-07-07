@@ -1,52 +1,14 @@
 {
-  "name": "حراج - سوق الإعلانات المبوبة",
-  "short_name": "حراج",
-  "description": "موقع حراج - أكبر سوق للإعلانات المبوبة في المملكة العربية السعودية. بيع وشراء السيارات والعقارات والأجهزة والأثاث والوظائف والحيوانات والخدمات.",
+  "name": "أوبر - منصة النقل والتوصيل",
+  "short_name": "أوبر",
+  "description": "احجز رحلتك في دقائق - خدمات نقل وتوصيل ذكية",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#16a34a",
-  "theme_color": "#16a34a",
-  "categories": ["shopping", "business", "lifestyle"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot1.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "أضف إعلان",
-      "url": "/?action=add",
-      "description": "نشر إعلان جديد"
-    },
-    {
-      "name": "السيارات",
-      "url": "/?category=cars",
-      "description": "تصفح سيارات حراج"
-    },
-    {
-      "name": "العقارات",
-      "url": "/?category=realestate",
-      "description": "تصفح عقارات حراج"
-    }
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

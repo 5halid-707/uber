@@ -1,2012 +1,936 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useSession } from "next-auth/react";
-import {
-  Search,
-  MapPin,
-  Phone,
-  MessageCircle,
-  Eye,
-  Clock,
-  Star,
-  Plus,
-  ChevronLeft,
-  Menu,
-  X,
-  Home,
-  Car,
-  Building2,
-  Smartphone,
-  Sofa,
-  Briefcase,
-  PawPrint,
-  Wrench,
-  User,
-  Heart,
-  Share2,
-  Image as ImageIcon,
-  TrendingUp,
-  Award,
-  ShieldCheck,
-  Verified,
-  LogIn,
-  Wallet,
-  Shield,
-} from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { formatPrice, formatArabicDate, formatNumber, formatKilometers } from "@/lib/format";
-import { AuthDialog } from "@/components/auth-dialog";
-import { UserMenu } from "@/components/user-menu";
-import { AdminDashboard } from "@/components/admin-dashboard";
-import { UserWallet } from "@/components/user-wallet";
-import { NotificationBell } from "@/components/notification-bell";
-import { PaymentDialog } from "@/components/payment-dialog";
+import { LogOut, Globe, MapPin, Navigation, Clock, Star, Wallet, Shield, LogIn, User, Home, Car, MessageCircle, AlertTriangle } from "lucide-react";
+import { useLang } from "@/lib/use-lang";
+import { t, type Lang } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { safePlaySound, playNewRequestSound, playDriverArrivedSound, playRideAcceptedSound, playTripCompletedSound, playMessageSound, initAudio } from "@/lib/sounds";
+import { saudiRegions, serviceTypes, popularPlaces, allCities, platformBankAccounts, saudiBanks, contactInfo, calculateDistance, calculatePrice, calculateDuration, getSurgeMultiplier } from "@/lib/saudi-data";
 
 // ===== TYPES =====
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string | null;
-  children: Category[];
-};
+type User = { id: string; name: string; email: string; phone: string; city?: string | null; region?: string | null; walletBalance: number; isAdmin: boolean; isDriver: boolean; isVerified: boolean; isBlocked?: boolean; rating: number; tripsCount: number; };
+type Trip = { id: string; userId: string; driverId?: string | null; serviceType: string; fromAddress: string; toAddress: string; distance: number; duration: number; price: number; finalPrice?: number; status: string; paymentMethod: string; lateFee?: number; cashReceived?: number | null; unpaidAmount?: number; cancellationLocked?: boolean; cancellationRequest?: string | null; driverArrivedAt?: string | null; startedAt?: string | null; createdAt: string; driver?: { name: string; phone: string } | null; user?: { name: string; phone: string } | null; };
+type View = "home" | "ride" | "trips" | "driver" | "driver-register" | "bank" | "profile" | "admin";
+const STORAGE_KEY = "uber_user";
 
-type Listing = {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  currency: string;
-  city: string;
-  district: string | null;
-  year: number | null;
-  kilometers: number | null;
-  condition: string | null;
-  images: string;
-  isFeatured: boolean;
-  views: number;
-  phone: string;
-  whatsapp: string | null;
-  createdAt: string;
-  category: { id: string; name: string; slug: string };
-  user: { id: string; username: string; isVerified: boolean; rating: number };
-  comments: { id: string; username: string; content: string; createdAt: string }[];
-};
-
-// Listing shape returned by /api/listings/user (has _count instead of comments)
-type UserListing = {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  currency: string;
-  city: string;
-  district: string | null;
-  year: number | null;
-  kilometers: number | null;
-  condition: string | null;
-  images: string;
-  isFeatured: boolean;
-  views: number;
-  phone: string;
-  whatsapp: string | null;
-  createdAt: string;
-  category: { id: string; name: string; slug: string };
-  _count?: { comments: number; favorites: number };
-};
-
-// ===== CONSTANTS =====
-const CATEGORY_ICONS: Record<string, typeof Car> = {
-  cars: Car,
-  realestate: Building2,
-  electronics: Smartphone,
-  furniture: Sofa,
-  jobs: Briefcase,
-  animals: PawPrint,
-  services: Wrench,
-};
-
-const SAUDI_CITIES = [
-  "جدة",
-  "الرياض",
-  "مكة",
-  "المدينة",
-  "الدمام",
-  "الخبر",
-  "الطائف",
-  "بريدة",
-  "أبها",
-  "تبوك",
-  "حائل",
-  "الأحساء",
-];
-
-export default function HarajHomePage() {
-  const { toast } = useToast();
-  const { data: session, status, update: updateSession } = useSession();
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+// ===== MAIN PAGE =====
+export default function Page() {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<View>("home");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const { lang, setLang } = useLang();
+  const { toast } = useToast();
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedCity, setSelectedCity] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
-
-  // UI state
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [payment, setPayment] = useState<{
-    open: boolean;
-    purpose: "featured_listing" | "wallet_topup";
-    amount: number;
-    listingId?: string;
-    listingTitle?: string;
-  }>({ open: false, purpose: "wallet_topup", amount: 100 });
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-
-  const isAuthenticated = status === "authenticated" && !!session?.user;
-   
-  const isAdmin = isAuthenticated && (session.user as any).isAdmin === true;
-
-  // Fetch listings
-  const fetchListings = async (reset = true) => {
-    if (reset) {
-      setLoading(true);
-      setOffset(0);
-    } else {
-      setLoadingMore(true);
-    }
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (selectedCategory !== "all") params.set("category", selectedCategory);
-      if (selectedCity !== "all") params.set("city", selectedCity);
-      if (searchQuery) params.set("search", searchQuery);
-      if (minPrice) params.set("minPrice", minPrice);
-      if (maxPrice) params.set("maxPrice", maxPrice);
-      if (showFeaturedOnly) params.set("featured", "true");
-      params.set("sort", sortBy);
-      params.set("limit", "20");
-      if (!reset) params.set("offset", String(offset));
-
-      const res = await fetch(`/api/listings?${params.toString()}`);
-      if (!res.ok) throw new Error("فشل في تحميل الإعلانات");
-      const data = await res.json();
-      if (reset) {
-        setListings(data.listings || []);
-      } else {
-        setListings(prev => [...prev, ...(data.listings || [])]);
-      }
-      setHasMore(data.hasMore || false);
-      if (!reset) setOffset(prev => prev + 20);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
-      toast({
-        title: "خطأ",
-        description: "تعذر تحميل الإعلانات. حاول مرة أخرى.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  // Fetch categories once
   useEffect(() => {
-    fetch("/api/categories")
-      .then((r) => r.json())
-      .then((data) => setCategories(data.categories || []))
-      .catch(() => {});
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsedUser = JSON.parse(stored) as User;
+        setUser(parsedUser);
+      }
+    } catch {}
+    setLoading(false);
   }, []);
 
-  // Fetch listings when filters change
   useEffect(() => {
-    const debounce = setTimeout(() => {
-      fetchListings();
-    }, 300);
-    return () => clearTimeout(debounce);
-     
-  }, [selectedCategory, selectedCity, sortBy, minPrice, maxPrice, showFeaturedOnly]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchListings();
-     
+    const handler = () => { initAudio(); document.removeEventListener("click", handler); };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
   }, []);
 
-  // Fetch favorites when user logs in
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetch("/api/favorites")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.favorites) {
-            setFavorites(new Set(data.favorites.map((l: { id: string }) => l.id)));
-          }
-        })
-        .catch(() => {});
-    } else {
-      setFavorites(new Set());
-    }
-  }, [isAuthenticated]);
+  const saveUser = useCallback((u: User | null) => {
+    try { if (u) localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); else localStorage.removeItem(STORAGE_KEY); } catch {}
+    setUser(u);
+  }, []);
 
-  // Featured listings shown with badge in main list (no separate section)
-  const featuredListings = useMemo(() => {
-    return listings.filter((l) => l.isFeatured).slice(0, 6);
-  }, [listings]);
+  const navigate = useCallback((target: View) => {
+    if (target !== "home" && !user) { setAuthOpen(true); return; }
+    setView(target); setMobileMenu(false);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [user]);
 
-  // Toggle favorite (requires auth)
-  const toggleFavorite = async (id: string) => {
-    if (!isAuthenticated) {
-      toast({
-        title: "تسجيل الدخول مطلوب",
-        description: "الرجاء تسجيل الدخول لحفظ المفضلة",
-        variant: "destructive",
-      });
-      setAuthDialogOpen(true);
-      return;
-    }
+  const handleLogout = useCallback(() => { saveUser(null); setView("home"); setTimeout(() => toast({ title: lang === "ar" ? "تم تسجيل الخروج" : "Logged out" }), 0); }, [saveUser, toast, lang]);
+  const handleAuthSuccess = useCallback((u: User) => { saveUser(u); setAuthOpen(false); setTimeout(() => toast({ title: `${lang === "ar" ? "مرحباً" : "Welcome"} ${u.name} 👋` }), 0); }, [saveUser, toast, lang]);
 
-    // Optimistic update
-    const wasFavorited = favorites.has(id);
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      if (wasFavorited) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mx-auto mb-4"><Car className="w-7 h-7 text-black" /></div>
+          <div className="text-white text-2xl font-bold mb-2">{lang === "ar" ? "أوبر" : "Uber"}</div>
+          <div className="animate-spin w-6 h-6 border-2 border-zinc-700 border-t-white rounded-full mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
-    try {
-      const res = await fetch("/api/favorites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: id }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      toast({
-        title: data.favorited ? "أُضيف إلى المفضلة ❤️" : "أُزيل من المفضلة",
-        duration: 1500,
-      });
-    } catch {
-      // Revert on error
-      setFavorites((prev) => {
-        const next = new Set(prev);
-        if (wasFavorited) {
-          next.add(id);
-        } else {
-          next.delete(id);
-        }
-        return next;
-      });
-      toast({
-        title: "خطأ",
-        description: "تعذر تحديث المفضلة",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Share listing
-  const shareListing = (listing: Listing) => {
-    const url = `${window.location.origin}/?listing=${listing.id}`;
-    if (navigator.share) {
-      navigator.share({
-        title: listing.title,
-        text: `شوف هذا الإعلان على حراج: ${listing.title}`,
-        url,
-      });
-    } else {
-      navigator.clipboard.writeText(url);
-      toast({ title: "تم نسخ الرابط", duration: 1500 });
-    }
-  };
-
-  // Reset filters
-  const resetFilters = () => {
-    setSelectedCategory("all");
-    setSelectedCity("all");
-    setSearchQuery("");
-    setMinPrice("");
-    setMaxPrice("");
-    setShowFeaturedOnly(false);
-    setSortBy("newest");
-  };
-
-  const activeFiltersCount =
-    (selectedCategory !== "all" ? 1 : 0) +
-    (selectedCity !== "all" ? 1 : 0) +
-    (searchQuery ? 1 : 0) +
-    (minPrice ? 1 : 0) +
-    (maxPrice ? 1 : 0) +
-    (showFeaturedOnly ? 1 : 0);
-
-  // Handle "Add Listing" click — requires auth
-  const handleAddListingClick = () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "تسجيل الدخول مطلوب",
-        description: "الرجاء تسجيل الدخول أو إنشاء حساب لنشر إعلان",
-        variant: "destructive",
-      });
-      setAuthDialogOpen(true);
-      return;
-    }
-    setAddDialogOpen(true);
-  };
-
-  // Open a listing from UserMenu (favorites/my listings)
-  const handleOpenListingFromMenu = (listing: UserListing) => {
-    setUserMenuOpen(false);
-    // Convert to the expected Listing type for the detail dialog
-    const fullListing: Listing = {
-      ...listing,
-      user: {
-        id: session?.user?.id || "",
-        username: session?.user?.name || "أنا",
-        isVerified: false,
-        rating: 5,
-      },
-      comments: [],
-    } as Listing;
-    setSelectedListing(fullListing);
-  };
+  const navItems: { id: View; label: string }[] = [
+    { id: "home", label: t("nav.home", lang) },
+    { id: "ride", label: t("nav.ride", lang) },
+    { id: "trips", label: t("nav.trips", lang) },
+    { id: "driver", label: t("nav.driver", lang) },
+    { id: "bank", label: t("nav.bank", lang) },
+    ...(user?.isAdmin ? [{ id: "admin" as View, label: t("nav.admin", lang) }] : []),
+    { id: "profile", label: t("nav.profile", lang) },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* ===== HEADER (Haraj-style white header) ===== */}
-      <header className="sticky top-0 z-50 bg-white border-b border-border shadow-sm">
-        <div className="container mx-auto px-3 sm:px-4">
-          {/* Top row: logo + nav + login */}
-          <div className="flex items-center gap-3 h-14">
-            {/* Mobile menu */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden text-foreground hover:bg-muted"
-                  aria-label="القائمة"
-                >
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-80 overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle className="text-right">الأقسام</SheetTitle>
-                </SheetHeader>
-                <div className="mt-4 space-y-1">
-                  <Button
-                    variant={selectedCategory === "all" ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setSelectedCategory("all");
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <Home className="h-4 w-4 ml-2" />
-                    جميع الأقسام
-                  </Button>
-                  {categories.map((cat) => {
-                    const Icon = CATEGORY_ICONS[cat.slug] || Home;
-                    return (
-                      <div key={cat.id}>
-                        <Button
-                          variant={selectedCategory === cat.slug ? "default" : "ghost"}
-                          className="w-full justify-start"
-                          onClick={() => {
-                            setSelectedCategory(cat.slug);
-                            setMobileMenuOpen(false);
-                          }}
-                        >
-                          <Icon className="h-4 w-4 ml-2" />
-                          {cat.name}
-                        </Button>
-                        {cat.children.length > 0 && (
-                          <div className="pr-4 mt-1 space-y-1">
-                            {cat.children.map((child) => (
-                              <Button
-                                key={child.id}
-                                variant={selectedCategory === child.slug ? "secondary" : "ghost"}
-                                size="sm"
-                                className="w-full justify-start text-sm"
-                                onClick={() => {
-                                  setSelectedCategory(child.slug);
-                                  setMobileMenuOpen(false);
-                                }}
-                              >
-                                {child.name}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* Logo - Haraj style (blue text) */}
-            <a href="/" className="flex items-center gap-1 shrink-0">
-              <span className="font-cairo font-bold text-2xl text-primary">حراج</span>
-            </a>
-
-            {/* Desktop nav links - Haraj style */}
-            <nav className="hidden md:flex items-center gap-1 mr-2">
-              <button
-                className={`px-3 py-1.5 text-sm font-cairo rounded transition-colors ${selectedCategory === "all" ? "text-primary font-bold" : "text-foreground hover:text-primary"}`}
-                onClick={() => setSelectedCategory("all")}
-              >
-                الرئيسية
-              </button>
-              <button
-                className={`px-3 py-1.5 text-sm font-cairo rounded transition-colors ${selectedCategory === "cars" ? "text-primary font-bold" : "text-foreground hover:text-primary"}`}
-                onClick={() => setSelectedCategory("cars")}
-              >
-                حراج السيارات
-              </button>
-              <button
-                className={`px-3 py-1.5 text-sm font-cairo rounded transition-colors ${selectedCategory === "electronics" ? "text-primary font-bold" : "text-foreground hover:text-primary"}`}
-                onClick={() => setSelectedCategory("electronics")}
-              >
-                أجهزة
-              </button>
-              <button
-                className={`px-3 py-1.5 text-sm font-cairo rounded transition-colors ${selectedCategory === "animals" ? "text-primary font-bold" : "text-foreground hover:text-primary"}`}
-                onClick={() => setSelectedCategory("animals")}
-              >
-                مواشي وحيوانات وطيور
-              </button>
-              <button
-                className={`px-3 py-1.5 text-sm font-cairo rounded transition-colors ${selectedCategory === "furniture" ? "text-primary font-bold" : "text-foreground hover:text-primary"}`}
-                onClick={() => setSelectedCategory("furniture")}
-              >
-                اثاث
-              </button>
-              <button
-                className="px-3 py-1.5 text-sm font-cairo rounded text-foreground hover:text-primary flex items-center gap-1"
-                onClick={() => setMobileMenuOpen(true)}
-              >
-                خدمات
-              </button>
-              <button
-                className="px-3 py-1.5 text-sm font-cairo rounded text-foreground hover:text-primary"
-                onClick={() => setMobileMenuOpen(true)}
-              >
-                أقسام أكثر
-              </button>
-            </nav>
-
-            <div className="flex-1" />
-
-            {/* Search icon button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-foreground hover:bg-muted"
-              aria-label="بحث"
-              onClick={() => {
-                const el = document.getElementById("search-input");
-                if (el) el.focus();
-              }}
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-
-            {/* Add listing button - Haraj style (blue) */}
-            <Button
-              className="bg-primary text-primary-foreground hover:bg-primary/90 font-cairo text-sm shrink-0"
-              onClick={handleAddListingClick}
-            >
-              <Plus className="h-4 w-4 ml-1" />
-              <span className="hidden sm:inline">اضافة عرض</span>
-              <span className="sm:hidden">عرض</span>
-            </Button>
-
-            {/* User account / login */}
-            {isAuthenticated ? (
-              <div className="flex items-center gap-1 shrink-0">
-                <NotificationBell />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-foreground hover:bg-muted"
-                  aria-label="محفظتي"
-                  title="محفظتي المالية"
-                  onClick={() => setWalletOpen(true)}
-                >
-                  <Wallet className="h-5 w-5" />
-                </Button>
-                {isAdmin && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 font-cairo text-xs gap-1 shrink-0"
-                    onClick={() => setAdminOpen(true)}
-                  >
-                    <Shield className="h-4 w-4" />
-                    <span className="hidden sm:inline">لوحة التحكم</span>
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-foreground hover:bg-muted shrink-0 gap-1.5"
-                  onClick={() => setUserMenuOpen(true)}
-                >
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-cairo">
-                      {session?.user?.name?.slice(0, 2) || "ح"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden md:inline font-cairo text-sm">
-                    {session?.user?.name}
-                  </span>
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary hover:bg-primary/10 shrink-0 gap-1.5 font-cairo font-bold"
-                onClick={() => setAuthDialogOpen(true)}
-              >
-                <LogIn className="h-4 w-4" />
-                <span className="hidden sm:inline">دخــــول</span>
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Search bar row - Haraj style (full width below header) */}
-        <div className="container mx-auto px-3 sm:px-4 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 relative">
-              <Input
-                id="search-input"
-                type="search"
-                placeholder="ابحث عن سلعة..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") fetchListings();
-                }}
-                className="bg-muted/50 border-border h-10 pr-10 pl-4 text-sm"
-              />
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-cairo text-sm border-primary text-primary hover:bg-primary/5"
-              onClick={() => {
-                if (!navigator.geolocation) {
-                  toast({ title: "GPS غير مدعوم", variant: "destructive" });
-                  return;
-                }
-                toast({ title: "جارٍ تحديد موقعك...", duration: 1500 });
-                navigator.geolocation.getCurrentPosition(
-                  async (pos) => {
-                    const res = await fetch(`/api/listings/nearby?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&radius=50`);
-                    if (res.ok) {
-                      const data = await res.json();
-                      setListings(data.listings);
-                      toast({ title: `وجدنا ${data.count} إعلان قريب منك`, duration: 2000 });
-                    }
-                  },
-                  () => toast({ title: "تعذر الوصول لموقعك", variant: "destructive" })
-                );
-              }}
-            >
-              <MapPin className="h-4 w-4 ml-1" />
-              القريب
-            </Button>
-          </div>
-        </div>
-
-        {/* Category pills row - Haraj style horizontal scroll */}
-        <div className="bg-primary/5 border-t border-b border-border">
-          <div className="container mx-auto px-3 sm:px-4">
-            <div className="flex items-center gap-1 h-11 overflow-x-auto scrollbar-thin">
-              <button
-                className={`px-3 py-1.5 text-xs sm:text-sm font-cairo whitespace-nowrap rounded-full transition-colors ${selectedCategory === "all" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-primary/10"}`}
-                onClick={() => setSelectedCategory("all")}
-              >
-                الرئيسية
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  className={`px-3 py-1.5 text-xs sm:text-sm font-cairo whitespace-nowrap rounded-full transition-colors ${selectedCategory === cat.slug ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-primary/10"}`}
-                  onClick={() => setSelectedCategory(cat.slug)}
-                >
-                  {cat.name}
-                </button>
+    <div className="min-h-screen flex flex-col bg-white">
+      <header className="sticky top-0 z-40 bg-black text-white border-b border-zinc-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
+            <button onClick={() => setView("home")} className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center"><Car className="w-5 h-5 text-black" /></div>
+              <span className="text-2xl font-bold">{lang === "ar" ? "أوبر" : "Uber"}</span>
+            </button>
+            <nav className="hidden lg:flex items-center gap-1">
+              {navItems.map((item) => (
+                <button key={item.id} onClick={() => navigate(item.id)} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === item.id ? "bg-white text-black" : "text-zinc-300 hover:text-white hover:bg-zinc-800"}`}>{item.label}</button>
               ))}
-              <button
-                className="px-3 py-1.5 text-xs sm:text-sm font-cairo whitespace-nowrap rounded-full text-muted-foreground hover:bg-muted shrink-0"
-                onClick={() => setMobileMenuOpen(true)}
-              >
-                المزيد
-              </button>
+            </nav>
+            <div className="hidden lg:flex items-center gap-3">
+              <LanguageSwitcher lang={lang} setLang={setLang} />
+              {user ? (
+                <>
+                  <button onClick={() => navigate("profile")} className="flex items-center gap-2 hover:bg-zinc-800 rounded-lg p-1 pr-2">
+                    <Avatar className="w-8 h-8"><AvatarFallback className="bg-zinc-700 text-sm">{user.name.charAt(0)}</AvatarFallback></Avatar>
+                    <span className="text-sm">{user.name.split(" ")[0]}</span>
+                  </button>
+                  <Button variant="outline" size="sm" onClick={handleLogout} className="border-zinc-700 text-white hover:bg-zinc-800" aria-label="Logout">
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => setAuthOpen(true)} variant="outline" size="sm" className="border-zinc-700 text-white hover:bg-zinc-800">
+                  <LogIn className="w-4 h-4 ml-2" />{t("nav.login", lang)}
+                </Button>
+              )}
             </div>
+            <button onClick={() => setMobileMenu(!mobileMenu)} className="lg:hidden p-2 hover:bg-zinc-800 rounded-lg">{mobileMenu ? "✕" : "☰"}</button>
           </div>
+          {mobileMenu && (
+            <nav className="lg:hidden pb-4 space-y-1">
+              <div className="px-4 py-2"><LanguageSwitcher lang={lang} setLang={setLang} /></div>
+              {navItems.map((item) => (
+                <button key={item.id} onClick={() => navigate(item.id)} className={`w-full text-right px-4 py-3 rounded-lg text-sm font-medium ${view === item.id ? "bg-white text-black" : "text-zinc-300 hover:bg-zinc-800"}`}>{item.label}</button>
+              ))}
+              {user ? (
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-sm text-red-400 hover:bg-zinc-800">
+                  <LogOut className="w-5 h-5" />{t("nav.logout", lang)}
+                </button>
+              ) : (
+                <button onClick={() => { setAuthOpen(true); setMobileMenu(false); }} className="w-full text-right px-4 py-3 rounded-lg text-sm bg-white text-black">{t("nav.login", lang)}</button>
+              )}
+            </nav>
+          )}
         </div>
       </header>
 
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <div className="flex gap-6">
-          {/* Sidebar - Desktop */}
-          <aside className="hidden lg:block w-64 shrink-0">
-            <div className="sticky top-32 space-y-4">
-              {/* Categories */}
-              <Card className="p-3">
-                <h3 className="font-cairo font-bold text-base mb-3 px-2 flex items-center gap-2">
-                  <Menu className="h-4 w-4" />
-                  الأقسام
-                </h3>
-                <div className="space-y-1">
-                  <Button
-                    variant={selectedCategory === "all" ? "default" : "ghost"}
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => setSelectedCategory("all")}
-                  >
-                    <Home className="h-4 w-4 ml-2" />
-                    جميع الأقسام
-                  </Button>
-                  {categories.map((cat) => {
-                    const Icon = CATEGORY_ICONS[cat.slug] || Home;
-                    const isActive = selectedCategory === cat.slug;
-                    return (
-                      <div key={cat.id}>
-                        <Button
-                          variant={isActive ? "default" : "ghost"}
-                          size="sm"
-                          className="w-full justify-start"
-                          onClick={() => setSelectedCategory(cat.slug)}
-                        >
-                          <Icon className="h-4 w-4 ml-2" />
-                          {cat.name}
-                        </Button>
-                        {cat.children.length > 0 && (
-                          <div className="pr-4 mt-0.5 mb-1 space-y-0.5">
-                            {cat.children.map((child) => (
-                              <button
-                                key={child.id}
-                                onClick={() => setSelectedCategory(child.slug)}
-                                className={`block w-full text-right px-3 py-1.5 text-xs rounded-md transition-colors category-chip ${
-                                  selectedCategory === child.slug
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground hover:bg-accent"
-                                }`}
-                              >
-                                {child.icon} {child.name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-
-              {/* Filters */}
-              <Card className="p-3">
-                <h3 className="font-cairo font-bold text-base mb-3 px-2 flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    الفلاتر
-                  </span>
-                  {activeFiltersCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={resetFilters}
-                      className="h-6 text-xs"
-                    >
-                      مسح الكل
-                    </Button>
-                  )}
-                </h3>
-                <div className="space-y-3 px-2">
-                  <div>
-                    <Label className="text-xs mb-1 block">المدينة</Label>
-                    <Select value={selectedCity} onValueChange={setSelectedCity}>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="كل المدن" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">كل المدن</SelectItem>
-                        {SAUDI_CITIES.map((c) => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs mb-1 block">السعر (ريال)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        placeholder="من"
-                        value={minPrice}
-                        onChange={(e) => setMinPrice(e.target.value)}
-                        className="h-9 text-sm"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="إلى"
-                        value={maxPrice}
-                        onChange={(e) => setMaxPrice(e.target.value)}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="featured"
-                      checked={showFeaturedOnly}
-                      onChange={(e) => setShowFeaturedOnly(e.target.checked)}
-                      className="rounded border-input"
-                    />
-                    <Label htmlFor="featured" className="text-xs cursor-pointer">
-                      المميزة فقط
-                    </Label>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Stats card */}
-              <Card className="p-4 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
-                <div className="flex items-center gap-2 mb-2">
-                  <ShieldCheck className="h-5 w-5" />
-                  <h4 className="font-cairo font-bold">إعلانات موثوقة</h4>
-                </div>
-                <p className="text-xs text-primary-foreground/80 leading-relaxed">
-                  جميع الإعلانات على حراج تمر عبر نظام تحقق لضمان جودة المعروضات وأمان المشترين.
-                </p>
-              </Card>
-            </div>
-          </aside>
-
-          {/* Listings column */}
-          <div className="flex-1 min-w-0">
-            {/* Breadcrumb / Title */}
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Home className="h-4 w-4 text-muted-foreground" />
-                <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">الإعلانات</span>
-                {selectedCategory !== "all" && (
-                  <>
-                    <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-cairo font-bold">
-                      {categories.find((c) => c.slug === selectedCategory)?.name ||
-                        categories.flatMap((c) => c.children).find((c) => c.slug === selectedCategory)?.name ||
-                        selectedCategory}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {loading ? "..." : `${listings.length} إعلان`}
-                </span>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-36 h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">الأحدث</SelectItem>
-                    <SelectItem value="price_low">الأرخص أولاً</SelectItem>
-                    <SelectItem value="price_high">الأغلى أولاً</SelectItem>
-                    <SelectItem value="popular">الأكثر مشاهدة</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* All listings — unified list, no separate featured section */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <h2 className="font-cairo font-bold text-lg">
-                  {showFeaturedOnly ? "الإعلانات المميزة" : "أحدث الإعلانات"}
-                </h2>
-              </div>
-
-              {/* Error state */}
-              {error && !loading && (
-                <Card className="p-8 text-center">
-                  <p className="text-destructive mb-4">{error}</p>
-                  <Button onClick={fetchListings}>إعادة المحاولة</Button>
-                </Card>
-              )}
-
-              {/* Loading state */}
-              {loading && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <Card key={i} className="overflow-hidden">
-                      <Skeleton className="aspect-[4/3] w-full" />
-                      <div className="p-3 space-y-2">
-                        <Skeleton className="h-3 w-3/4" />
-                        <Skeleton className="h-4 w-1/2" />
-                        <Skeleton className="h-3 w-2/3" />
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-
-              {/* Empty state */}
-              {!loading && !error && listings.length === 0 && (
-                <Card className="p-12 text-center">
-                  <Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <h3 className="font-cairo font-bold text-lg mb-1">لا توجد إعلانات مطابقة</h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    جرّب تغيير الفلاتر أو أضف إعلانك الخاص
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" onClick={resetFilters}>مسح الفلاتر</Button>
-                    <Button onClick={handleAddListingClick}>
-                      <Plus className="h-4 w-4 ml-1" />
-                      أضف إعلان
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              {/* Grid */}
-              {!loading && !error && listings.length > 0 && (
-                <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {listings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      onOpen={() => setSelectedListing(listing)}
-                      isFavorite={favorites.has(listing.id)}
-                      onToggleFavorite={() => toggleFavorite(listing.id)}
-                      onShare={() => shareListing(listing)}
-                    />
-                  ))}
-                </div>
-
-                {/* مشاهدة المزيد */}
-                {hasMore && (
-                  <div className="flex justify-center mt-6">
-                    <Button
-                      variant="outline"
-                      className="font-cairo border-primary text-primary hover:bg-primary/5 px-8 h-11"
-                      onClick={() => fetchListings(false)}
-                      disabled={loadingMore}
-                    >
-                      {loadingMore ? (
-                        <>
-                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin ml-2" />
-                          جارٍ التحميل...
-                        </>
-                      ) : (
-                        "مشاهدة المزيد ..."
-                      )}
-                    </Button>
-                  </div>
-                )}
-                </>
-              )}
-            </section>
-          </div>
-        </div>
+      <main className="flex-1 pb-20 md:pb-0">
+        {view === "home" && <HomeView navigate={navigate} user={user} lang={lang} />}
+        {view === "ride" && <RideView user={user} lang={lang} />}
+        {view === "trips" && <TripsView user={user} lang={lang} />}
+        {view === "driver" && <DriverView user={user} lang={lang} />}
+        {view === "driver-register" && <DriverRegisterView user={user} lang={lang} />}
+        {view === "bank" && <BankView user={user} lang={lang} />}
+        {view === "profile" && <ProfileView user={user} lang={lang} onLogout={handleLogout} />}
+        {view === "admin" && <AdminView user={user} lang={lang} />}
       </main>
 
-      {/* ===== DETAIL DIALOG ===== */}
-      <ListingDetailDialog
-        listing={selectedListing}
-        onClose={() => setSelectedListing(null)}
-        onToggleFavorite={toggleFavorite}
-        isFavorite={selectedListing ? favorites.has(selectedListing.id) : false}
-        onPromoteFeatured={(listingId, title, price) => {
-          setPayment({
-            open: true,
-            purpose: "featured_listing",
-            amount: price,
-            listingId,
-            listingTitle: title,
-          });
-          setSelectedListing(null);
-        }}
-      />
-
-      {/* ===== ADD LISTING DIALOG ===== */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <AddListingDialog
-          categories={categories}
-          onClose={() => setAddDialogOpen(false)}
-          onAdded={() => {
-            setAddDialogOpen(false);
-            fetchListings();
-            updateSession();
-          }}
-        />
-      </Dialog>
-
-      {/* ===== AUTH DIALOG ===== */}
-      <AuthDialog
-        open={authDialogOpen}
-        onOpenChange={setAuthDialogOpen}
-        onSuccess={() => {
-          updateSession();
-        }}
-      />
-
-      {/* ===== USER MENU DIALOG ===== */}
-      <UserMenu
-        open={userMenuOpen}
-        onOpenChange={setUserMenuOpen}
-        onOpenListing={handleOpenListingFromMenu}
-      />
-
-      {/* ===== USER WALLET DIALOG ===== */}
-      <UserWallet open={walletOpen} onOpenChange={setWalletOpen} />
-
-      {/* ===== ADMIN DASHBOARD DIALOG ===== */}
-      <AdminDashboard open={adminOpen} onOpenChange={setAdminOpen} />
-
-      {/* ===== PAYMENT DIALOG ===== */}
-      <PaymentDialog
-        open={payment.open}
-        onOpenChange={(open) => setPayment({ ...payment, open })}
-        purpose={payment.purpose}
-        amount={payment.amount}
-        listingId={payment.listingId}
-        listingTitle={payment.listingTitle}
-        onSuccess={() => {
-          fetchListings();
-          toast({ title: "تمت العملية بنجاح ✓", duration: 2000 });
-        }}
-      />
-
-      {/* ===== FOOTER (Haraj-style comprehensive footer) ===== */}
-      <footer className="mt-auto bg-muted/30 border-t border-border">
-        <div className="container mx-auto px-4 py-8">
-          {/* App store badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <a href="#" className="hover:opacity-80 transition-opacity">
-              <div className="bg-black text-white rounded-lg px-4 py-2 flex items-center gap-2">
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
-                <div className="text-right">
-                  <div className="text-[10px]">Download on the</div>
-                  <div className="text-sm font-bold">App Store</div>
-                </div>
+      <footer className="bg-black text-white mt-auto hidden md:block">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center"><Car className="w-5 h-5 text-black" /></div>
+                <span className="text-2xl font-bold">{lang === "ar" ? "أوبر" : "Uber"}</span>
               </div>
-            </a>
-            <a href="#" className="hover:opacity-80 transition-opacity">
-              <div className="bg-black text-white rounded-lg px-4 py-2 flex items-center gap-2">
-                <svg className="h-6 w-6" viewBox="0 0 24 24"><path fill="#34A853" d="M16.81 10.44L4.66 3.4l9.41 9.66z"/><path fill="#FBBC04" d="M19.36 12.93l-2.55-1.47-2.86 2.6 2.86 2.6 2.55-1.47c.85-.49.85-1.77 0-2.26z"/><path fill="#EA4335" d="M4.66 3.4c-.02.07-.03.14-.03.22v16.76c0 .08.01.15.03.22l9.45-9.66z"/><path fill="#4285F4" d="M14.11 12.94L4.66 3.4c.18-.62.74-1.06 1.4-1.06.26 0 .51.07.74.2l12.16 7.04z"/></svg>
-                <div className="text-right">
-                  <div className="text-[10px]">GET IT ON</div>
-                  <div className="text-sm font-bold">Google Play</div>
-                </div>
-              </div>
-            </a>
-            <a href="#" className="hover:opacity-80 transition-opacity">
-              <div className="bg-black text-white rounded-lg px-4 py-2 flex items-center gap-2">
-                <span className="text-lg font-bold">H</span>
-                <div className="text-right">
-                  <div className="text-[10px]">Download on</div>
-                  <div className="text-sm font-bold">Huawei</div>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          {/* Real estate note */}
-          <div className="text-center mb-6 text-xs text-muted-foreground">
-            <p>قسم العقارات في منصة حراج يتم تشغيله بواسطة رخصة وساطة وتسويق معتمدة</p>
-          </div>
-
-          {/* Footer links - Haraj style */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-foreground mb-6">
-            <a href="#" className="hover:text-primary">تسجيل حساب</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">سداد رسوم الموقع</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">الاشتراك السنوي للمتجر</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">زيادة مشاهدات العروض</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">اتفاقية الاستخدام</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">خدمة الشراء الموثوق</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">توثيق المتجر وإضافة التراخيص</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">مركز الأمان</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">نظام التقييم</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">نظام الخصم</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">الحسابات والأرقام الموقوفة</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">قائمة السلع والعروض الممنوعة</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">الأسئلة الشائعة</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">سياسة الخصوصية</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">سياسة الملكية الفكرية</a>
-            <span className="text-border">|</span>
-            <a href="#" className="hover:text-primary">اتصل بنا</a>
-          </div>
-
-          {/* Social media icons */}
-          <div className="flex items-center justify-center gap-3 mb-6">
-            {[
-              { name: "twitter", path: "M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z" },
-              { name: "tiktok", path: "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" },
-              { name: "snapchat", path: "M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .359.029.509.09.45.149.734.479.734.838.015.449-.39.839-1.213 1.168-.089.029-.209.075-.344.119-.45.135-1.139.36-1.333.81-.09.224-.061.524.12.868l.015.015c.06.136 1.526 3.475 4.791 4.014.255.044.435.27.42.509 0 .075-.015.149-.045.225-.24.569-1.273.988-3.146 1.271-.059.091-.12.375-.164.57-.029.179-.074.36-.134.553-.076.271-.27.405-.555.405h-.03c-.135 0-.313-.031-.538-.074-.36-.075-.765-.135-1.273-.135-.3 0-.599.015-.913.074-.6.104-1.123.464-1.723.884-.853.599-1.826 1.288-3.294 1.288-.06 0-.119-.015-.18-.015h-.149c-1.468 0-2.427-.675-3.279-1.288-.599-.42-1.107-.78-1.707-.884-.314-.045-.629-.074-.928-.074-.54 0-.958.089-1.272.149-.211.043-.391.074-.54.074-.374 0-.523-.224-.583-.42-.061-.192-.09-.389-.135-.567-.046-.181-.105-.494-.166-.57-1.918-.222-2.95-.642-3.189-1.226-.031-.063-.052-.15-.055-.225-.015-.243.165-.465.42-.509 3.264-.54 4.73-3.879 4.791-4.02l.016-.029c.18-.345.224-.645.119-.869-.195-.434-.884-.658-1.332-.809-.121-.029-.24-.074-.346-.119-1.107-.435-1.257-.93-1.197-1.273.09-.479.674-.793 1.168-.793.146 0 .27.029.383.074.42.194.789.299 1.104.299.234 0 .384-.06.465-.105l-.046-.569c-.098-1.626-.225-3.651.307-4.837C7.392 1.077 10.739.807 11.727.807l.434-.015h.045z" },
-              { name: "instagram", path: "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" },
-              { name: "facebook", path: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" },
-              { name: "youtube", path: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" },
-            ].map((social) => (
-              <a
-                key={social.name}
-                href="#"
-                aria-label={social.name}
-                className="w-9 h-9 rounded-full bg-foreground/10 hover:bg-primary hover:text-primary-foreground flex items-center justify-center transition-colors"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d={social.path} />
-                </svg>
-              </a>
-            ))}
-          </div>
-
-          {/* Font size controls + company info */}
-          <div className="flex flex-col items-center gap-3 text-xs text-muted-foreground border-t border-border pt-6">
-            <div className="flex items-center gap-3">
-              <span>حجم الخط:</span>
-              <button
-                onClick={() => {
-                  document.documentElement.style.fontSize = "14px";
-                  toast({ title: "تم تصغير الخط", duration: 1500 });
-                }}
-                className="w-7 h-7 rounded border border-border hover:bg-muted flex items-center justify-center"
-                aria-label="تصغير الخط"
-              >
-                <span className="text-xs">-A</span>
-              </button>
-              <button
-                onClick={() => {
-                  document.documentElement.style.fontSize = "16px";
-                  toast({ title: "حجم الخط الافتراضي", duration: 1500 });
-                }}
-                className="w-7 h-7 rounded border border-border hover:bg-muted flex items-center justify-center"
-                aria-label="حجم افتراضي"
-              >
-                <span className="text-sm">A</span>
-              </button>
-              <button
-                onClick={() => {
-                  document.documentElement.style.fontSize = "18px";
-                  toast({ title: "تم تكبير الخط", duration: 1500 });
-                }}
-                className="w-7 h-7 rounded border border-border hover:bg-muted flex items-center justify-center"
-                aria-label="تكبير الخط"
-              >
-                <span className="text-base">+A</span>
-              </button>
+              <p className="text-zinc-400 text-sm">{t("footer.desc", lang)}</p>
             </div>
-
-            <div className="text-center">
-              <p className="font-cairo font-bold text-foreground mb-1">مؤسسة موقع حراج لتقنية المعلومات</p>
-              <p className="text-[10px]">N0.0.1, 2026-06-25 10</p>
-              <p className="text-[10px]">الرقم الضريبي: 300710482300003</p>
-            </div>
-
-            <p className="text-[10px] mt-2">© 2026 حراج. جميع الحقوق محفوظة.</p>
+            <div><h4 className="font-bold mb-4">{t("footer.company", lang)}</h4><ul className="space-y-2 text-sm text-zinc-400"><li><button className="hover:text-white">{t("footer.about", lang)}</button></li><li><button className="hover:text-white">{t("footer.jobs", lang)}</button></li></ul></div>
+            <div><h4 className="font-bold mb-4">{t("footer.services", lang)}</h4><ul className="space-y-2 text-sm text-zinc-400"><li><button onClick={() => navigate("ride")} className="hover:text-white">{t("footer.bookRide", lang)}</button></li><li><button onClick={() => navigate("bank")} className="hover:text-white">{t("footer.bankAccounts", lang)}</button></li></ul></div>
+            <div><h4 className="font-bold mb-4">{t("footer.support", lang)}</h4><ul className="space-y-2 text-sm text-zinc-400"><li><a href={`tel:${contactInfo.phone}`} className="hover:text-white">📞 {contactInfo.phone}</a></li><li><a href={`mailto:${contactInfo.email}`} className="hover:text-white">✉️ {contactInfo.email}</a></li></ul></div>
           </div>
+          <div className="pt-8 border-t border-zinc-800 text-center text-zinc-400 text-sm">{t("footer.rights", lang)}</div>
         </div>
       </footer>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black text-white border-t border-zinc-800 z-40">
+        <div className="grid grid-cols-5 h-16">
+          {([{ id: "home", l: t("nav.home", lang), i: "🏠" }, { id: "ride", l: t("nav.ride", lang), i: "🚗" }, { id: "trips", l: t("nav.trips", lang), i: "📋" }, { id: "bank", l: t("nav.bank", lang), i: "💳" }, { id: "profile", l: t("nav.profile", lang), i: "👤" }] as { id: View; l: string; i: string }[]).map((item) => (
+            <button key={item.id} onClick={() => navigate(item.id)} className={`flex flex-col items-center justify-center gap-1 ${view === item.id ? "text-white" : "text-zinc-500"}`}>
+              <span className="text-xl">{item.i}</span><span className="text-[10px]">{item.l}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onSuccess={handleAuthSuccess} lang={lang} />
     </div>
   );
 }
 
-// ===== LISTING CARD COMPONENT (Haraj-style) =====
-function ListingCard({
-  listing,
-  onOpen,
-  isFavorite,
-  onToggleFavorite,
-  onShare,
-  compact = false,
-}: {
-  listing: Listing;
-  onOpen: () => void;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
-  onShare: () => void;
-  compact?: boolean;
-}) {
-  const images: string[] = (() => {
-    try {
-      return JSON.parse(listing.images);
-    } catch {
-      return [];
-    }
-  })();
-  const coverImage = images[0];
-  const sellerInitial = listing.user.username.charAt(0);
+// ===== HOME VIEW =====
+function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user: User | null; lang: Lang }) {
+  const services = serviceTypes.map((s) => ({ id: s.id, name: lang === "ar" ? s.name : t(`services.${s.id}`, lang), desc: s.desc, emoji: s.emoji }));
+  const stats = [{ v: "+5M", l: t("home.stats.trips", lang) }, { v: "+50K", l: t("home.stats.drivers", lang) }, { v: "4.9", l: t("home.stats.rating", lang) }, { v: "13", l: t("home.stats.regions", lang) }];
 
   return (
-    <div
-      className="bg-white border border-border rounded-lg overflow-hidden cursor-pointer hover:border-primary hover:shadow-md transition-all group"
-      onClick={onOpen}
-    >
-      {/* Top: seller info bar */}
-      <div className="flex items-center gap-2 p-2 bg-muted/30 border-b border-border">
-        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-          <span className="font-cairo font-bold text-primary text-xs">{sellerInitial}</span>
-        </div>
-        <span className="text-xs text-muted-foreground font-cairo truncate flex-1">{listing.user.username}</span>
-        {listing.isFeatured && (
-          <Badge className="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0 h-5">
-            <Award className="h-2.5 w-2.5 ml-0.5" />
-            مميز
-          </Badge>
-        )}
-      </div>
-
-      {/* Image */}
-      <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-        {coverImage ? (
-          <img
-            src={coverImage}
-            alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-            <ImageIcon className="h-10 w-10 mb-1" />
-            <span className="text-xs">لا توجد صورة</span>
+    <div>
+      <section className="relative bg-black text-white overflow-hidden">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <Badge className="bg-zinc-800 text-white border-zinc-700">{t("home.badge", lang)}</Badge>
+              <h1 className="text-4xl md:text-6xl font-bold leading-tight">{t("home.heroTitle", lang)}<br /><span className="text-zinc-400">{t("home.heroSubtitle", lang)}</span></h1>
+              <p className="text-lg text-zinc-300 max-w-md">{t("home.heroDesc", lang)}</p>
+              <div className="flex flex-wrap gap-3">
+                <Button size="lg" onClick={() => navigate("ride")} className="bg-white text-black hover:bg-zinc-200 text-lg px-8 h-14">{t("home.bookNow", lang)} ←</Button>
+                <Button size="lg" variant="outline" onClick={() => navigate("driver-register")} className="border-zinc-700 text-white hover:bg-zinc-800 h-14 text-lg">{t("home.beDriver", lang)}</Button>
+              </div>
+              {!user && <p className="text-sm text-zinc-400">{t("home.welcomeBonus", lang)}</p>}
+            </div>
+            <div className="relative">
+              <div className="aspect-square max-w-md mx-auto rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-900">
+                <iframe src="https://www.google.com/maps?q=Riyadh&output=embed" className="w-full h-full" style={{ border: 0, minHeight: "300px" }} loading="lazy" />
+              </div>
+            </div>
           </div>
-        )}
-
-        {/* Image count */}
-        {images.length > 1 && (
-          <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
-            <ImageIcon className="h-3 w-3" />
-            {images.length}
-          </div>
-        )}
-
-        {/* Quick actions */}
-        <div className="absolute top-1 left-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-            className="bg-white/90 hover:bg-white rounded-full p-1.5 shadow-sm"
-            aria-label="أضف للمفضلة"
-          >
-            <Heart className={`h-3.5 w-3.5 ${isFavorite ? "fill-destructive text-destructive" : "text-foreground"}`} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare();
-            }}
-            className="bg-white/90 hover:bg-white rounded-full p-1.5 shadow-sm"
-            aria-label="مشاركة"
-          >
-            <Share2 className="h-3.5 w-3.5 text-foreground" />
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-2.5 space-y-1">
-        {/* Title */}
-        <h3 className="font-cairo text-sm leading-snug line-clamp-2 text-foreground">
-          {listing.title}
-        </h3>
-
-        {/* Price */}
-        <div className="text-primary font-cairo font-bold text-base tabular-nums">
-          {formatPrice(listing.price, listing.currency)}
-        </div>
-
-        {/* Year/KM for cars */}
-        {listing.year && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{listing.year}</span>
-            {listing.kilometers != null && (
-              <>
-                <span>•</span>
-                <span>{formatKilometers(listing.kilometers)}</span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Location + time */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border">
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            <span className="line-clamp-1">{listing.city}</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Clock className="h-3 w-3" />
-            <span>{formatArabicDate(new Date(listing.createdAt))}</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 pt-16 border-t border-zinc-800">
+            {stats.map((s, i) => (<div key={i} className="text-center"><div className="text-3xl md:text-4xl font-bold">{s.v}</div><div className="text-sm text-zinc-400 mt-1">{s.l}</div></div>))}
           </div>
         </div>
-      </div>
+      </section>
+
+      <section className="py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-3">{lang === "ar" ? "خدماتنا" : "Our Services"}</Badge>
+            <h2 className="text-3xl md:text-5xl font-bold text-black">{t("home.servicesTitle", lang)}</h2>
+            <p className="text-zinc-500 mt-3 max-w-2xl mx-auto">{t("home.servicesDesc", lang)}</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {services.map((s) => (
+              <Card key={s.id} className="p-6 hover:shadow-xl transition-all cursor-pointer border-zinc-200 hover:border-black group" onClick={() => navigate("ride")}>
+                <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{s.emoji}</div>
+                <h3 className="font-bold text-lg text-black">{s.name}</h3>
+                <p className="text-sm text-zinc-500 mt-1">{s.desc}</p>
+                <div className="flex items-center gap-1 mt-3 text-sm font-medium text-black">{t("home.startNow", lang)} ←</div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 bg-zinc-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-3">{lang === "ar" ? "تغطيتنا" : "Coverage"}</Badge>
+            <h2 className="text-3xl md:text-5xl font-bold text-black">{t("home.coverageTitle", lang)}</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {saudiRegions.map((r) => (
+              <Card key={r.id} className="p-4 text-center border-zinc-200 hover:border-black">
+                <div className="text-2xl mb-2">📍</div>
+                <h3 className="font-bold text-sm text-black">{lang === "ar" ? r.name : r.name}</h3>
+                <p className="text-xs text-zinc-500">{r.cities.length} {t("home.cities", lang)}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 bg-black text-white">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">{t("home.ctaTitle", lang)}</h2>
+          <p className="text-zinc-400 mb-8">{t("home.ctaDesc", lang)}</p>
+          <Button size="lg" onClick={() => navigate("ride")} className="bg-white text-black hover:bg-zinc-200 h-14 px-8 text-lg">{t("home.bookNow", lang)}</Button>
+        </div>
+      </section>
     </div>
   );
 }
 
-// ===== LISTING DETAIL DIALOG =====
-function ListingDetailDialog({
-  listing,
-  onClose,
-  onToggleFavorite,
-  isFavorite,
-  onPromoteFeatured,
-}: {
-  listing: Listing | null;
-  onClose: () => void;
-  onToggleFavorite: (id: string) => void;
-  isFavorite: boolean;
-  onPromoteFeatured?: (listingId: string, title: string, price: number) => void;
-}) {
+// ===== RIDE VIEW =====
+function RideView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [activeField, setActiveField] = useState<"from" | "to" | null>(null);
+  const [selectedService, setSelectedService] = useState("ride");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [step, setStep] = useState<"search" | "confirm" | "tracking">("search");
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  const [lateFeeData, setLateFeeData] = useState({ waitingMinutes: 0, lateFee: 0, freeMinutesLeft: 3 });
+  const [elapsed, setElapsed] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
   const { toast } = useToast();
-  const [activeImage, setActiveImage] = useState(0);
-  const [commentName, setCommentName] = useState("");
-  const [commentText, setCommentText] = useState("");
-  const [commentPhone, setCommentPhone] = useState("");
-  const [comments, setComments] = useState<Listing["comments"]>([]);
+  const prevStatus = useRef<string>("");
+
+  const [calc, setCalc] = useState({ distance: 0, duration: 0, surge: 1 });
+  useEffect(() => {
+    if (from && to) {
+      const dist = calculateDistance(from, to);
+      const dur = calculateDuration(dist);
+      const surge = getSurgeMultiplier();
+      setCalc({ distance: dist, duration: dur, surge });
+    }
+  }, [from, to]);
+
+  const prices = serviceTypes.map((s) => ({ ...s, price: Math.floor(calculatePrice(s.id, calc.distance, calc.duration) * calc.surge) }));
+  const selectedPrice = prices.find((p) => p.id === selectedService);
 
   useEffect(() => {
-    if (listing) {
-      setActiveImage(0);
-      setComments(listing.comments || []);
-    }
-  }, [listing]);
+    if (step !== "tracking" || !activeTrip || !user) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/trips?userId=${user.id}&activeOnly=true`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const trip = data[0];
+          setActiveTrip(trip);
+          if (trip.status !== prevStatus.current) {
+            if (trip.status === "accepted" && prevStatus.current === "pending") safePlaySound(playRideAcceptedSound);
+            if (trip.status === "driver_arrived" && prevStatus.current === "accepted") safePlaySound(playDriverArrivedSound);
+            if (trip.status === "completed") safePlaySound(playTripCompletedSound);
+            prevStatus.current = trip.status;
+          }
+          if (trip.status === "completed") { setStep("search"); setTimeout(() => toast({ title: lang === "ar" ? "وصلت! 🎉" : "Arrived! 🎉" }), 0); }
+        }
+      } catch {}
+    };
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [step, activeTrip, user, toast, lang]);
 
-  if (!listing) return null;
+  useEffect(() => {
+    if (activeTrip?.status !== "driver_arrived" || !activeTrip.id) return;
+    const poll = async () => { try { const res = await fetch(`/api/trips/late-fee?tripId=${activeTrip.id}`); const data = await res.json(); setLateFeeData(data); } catch {} };
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [activeTrip?.status, activeTrip?.id]);
 
-  const safeComments = comments || [];
+  useEffect(() => {
+    if (activeTrip?.status !== "driver_arrived" || !activeTrip.driverArrivedAt) return;
+    const update = () => { const diff = Date.now() - new Date(activeTrip.driverArrivedAt!).getTime(); setElapsed(Math.floor(diff / 1000)); };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [activeTrip?.status, activeTrip?.driverArrivedAt]);
 
-  const images: string[] = (() => {
+  const handleBook = () => {
+    if (!user) { toast({ title: lang === "ar" ? "سجل دخولك أولاً" : "Login first", variant: "destructive" }); return; }
+    if (!from || !to) { toast({ title: lang === "ar" ? "أدخل نقطة الانطلاق والوجهة" : "Enter pickup and destination", variant: "destructive" }); return; }
+    setStep("confirm");
+  };
+
+  const confirmBooking = async () => {
+    if (!user) return;
     try {
-      return JSON.parse(listing.images);
-    } catch {
-      return [];
-    }
-  })();
-
-  const handleSubmitComment = async () => {
-    if (!commentName.trim() || !commentText.trim()) {
-      toast({
-        title: "بيانات ناقصة",
-        description: "الرجاء إدخال الاسم والتعليق",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId: listing.id,
-          username: commentName,
-          content: commentText,
-          phone: commentPhone || null,
-        }),
-      });
-      if (!res.ok) throw new Error();
+      const res = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, serviceType: selectedService, fromAddress: from, toAddress: to, distance: calc.distance, duration: calc.duration, price: selectedPrice?.price, paymentMethod }) });
       const data = await res.json();
-      setComments([data.comment, ...(comments || [])]);
-      setCommentName("");
-      setCommentText("");
-      setCommentPhone("");
-      toast({ title: "تم نشر تعليقك بنجاح", duration: 1500 });
-    } catch {
-      toast({
-        title: "خطأ",
-        description: "تعذر نشر التعليق",
-        variant: "destructive",
-      });
-    }
+      if (!res.ok) throw new Error(data.error);
+      setActiveTrip(data); setStep("tracking"); prevStatus.current = "pending";
+      setTimeout(() => toast({ title: lang === "ar" ? "تم الحجز! 🚗" : "Booked! 🚗", description: lang === "ar" ? "جارٍ البحث عن سائق..." : "Finding driver..." }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل الحجز" : "Booking failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
   };
 
-  const handleCall = () => {
-    window.location.href = `tel:${listing.phone}`;
+  const handleCancel = async () => {
+    if (!activeTrip || !user) return;
+    try {
+      const res = await fetch("/api/trips/cancel-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: activeTrip.id, requestedBy: user.id, reason: lang === "ar" ? "إلغاء من الراكب" : "Rider cancel" }) });
+      const data = await res.json();
+      if (data.direct) { setStep("search"); setActiveTrip(null); setTimeout(() => toast({ title: lang === "ar" ? "تم إلغاء الرحلة" : "Trip cancelled" }), 0); }
+      else { setTimeout(() => toast({ title: lang === "ar" ? "تم تقديم طلب الإلغاء للإدارة" : "Cancellation request sent" }), 0); }
+    } catch { toast({ title: lang === "ar" ? "فشل الإلغاء" : "Cancel failed", variant: "destructive" }); }
   };
 
-  const handleWhatsApp = () => {
-    const phone = listing.whatsapp || listing.phone;
-    const cleanPhone = phone.replace(/^0/, "966");
-    const msg = `السلام عليكم، أنا مهتم بـ: ${listing.title}`;
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, "_blank");
+  if (step === "tracking" && activeTrip) {
+    const status = activeTrip.status;
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        <div className="grid lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3">
+            <Card className="overflow-hidden border-zinc-200">
+              <div className="h-96">
+                <iframe src={`https://www.google.com/maps?q=${encodeURIComponent(activeTrip.fromAddress + " to " + activeTrip.toAddress + " Saudi Arabia")}&output=embed`} className="w-full h-full" style={{ border: 0 }} loading="lazy" />
+              </div>
+            </Card>
+          </div>
+          <div className="lg:col-span-2">
+            <Card className="p-6 border-zinc-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-black">{t("ride.driverInfo", lang)}</h2>
+                {activeTrip.driverId && <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>}
+              </div>
+              {status === "pending" && (<div className="text-center py-8"><div className="animate-spin w-12 h-12 border-4 border-zinc-200 border-t-black rounded-full mx-auto mb-4"></div><p className="font-bold text-black">{t("ride.searching", lang)}</p><p className="text-sm text-zinc-500 mt-1">{t("ride.searchingDesc", lang)}</p></div>)}
+              {status === "accepted" && (<div className="space-y-3"><div className="bg-green-50 p-3 rounded-xl text-center"><p className="font-bold text-green-700">✅ {t("ride.driverAccepted", lang)}</p><p className="text-sm text-green-600">{t("ride.driverOnWay", lang)}</p></div></div>)}
+              {status === "driver_arrived" && (<div className="space-y-3"><div className="bg-blue-50 p-4 rounded-xl text-center"><p className="font-bold text-blue-700 text-lg">🚗 {t("ride.driverArrived", lang)}</p><p className="text-sm text-blue-600">{t("ride.driverArrivedDesc", lang)}</p></div><div className="bg-zinc-50 p-3 rounded-xl"><div className="flex justify-between mb-2"><span className="text-sm text-zinc-500">⏱️ {t("ride.elapsed", lang)}</span><span className="font-bold text-black">{mins} {t("ride.minutes", lang)} {secs}s</span></div><div className="flex justify-between mb-2"><span className="text-sm text-zinc-500">🎁 {t("ride.freeLeft", lang)}</span><span className="font-bold text-green-600">{lateFeeData.freeMinutesLeft} {t("ride.minutes", lang)}</span></div>{lateFeeData.lateFee > 0 && (<div className="flex justify-between bg-red-50 p-2 rounded"><span className="text-sm text-red-600">⚠️ {t("ride.lateFee", lang)}</span><span className="font-bold text-red-600">{lateFeeData.lateFee} ر.س</span></div>)}</div></div>)}
+              {status === "ongoing" && (<div className="bg-green-50 p-4 rounded-xl text-center"><p className="font-bold text-green-700 text-lg">🚗💨 {t("ride.tripOngoing", lang)}</p><p className="text-sm text-green-600">{t("ride.enRoute", lang)} {activeTrip.toAddress}</p><div className="mt-2 bg-yellow-50 p-2 rounded text-xs text-yellow-700">🔒 {t("ride.cancelLocked", lang)}</div></div>)}
+              <Separator className="my-4" />
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2"><span className="text-green-500">●</span><span className="text-zinc-600">{activeTrip.fromAddress}</span></div>
+                <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-zinc-600">{activeTrip.toAddress}</span></div>
+              </div>
+              <Separator className="my-4" />
+              <div className="flex justify-between mb-4"><span className="text-zinc-500">{t("ride.cost", lang)}</span><span className="font-bold text-black text-xl">{activeTrip.finalPrice || activeTrip.price} ر.س</span></div>
+              <Button onClick={handleCancel} variant="outline" className="w-full h-12 border-red-200 text-red-600 hover:bg-red-50">{activeTrip.cancellationLocked ? t("ride.requestCancel", lang) : t("ride.cancelTrip", lang)}</Button>
+            </Card>
+          </div>
+        </div>
+        {chatOpen && activeTrip.driverId && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.driverId} otherName={activeTrip.driver?.name || "Driver"} lang={lang} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="grid lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3 order-2 lg:order-1">
+          <Card className="overflow-hidden border-zinc-200"><div className="h-96 lg:h-[500px]"><iframe src={`https://www.google.com/maps?q=${encodeURIComponent((from || "Riyadh") + " Saudi Arabia")}&output=embed`} className="w-full h-full" style={{ border: 0 }} loading="lazy" /></div></Card>
+        </div>
+        <div className="lg:col-span-2 order-1 lg:order-2">
+          <Card className="p-6 border-zinc-200">
+            <h2 className="text-2xl font-bold text-black mb-6">{t("ride.title", lang)}</h2>
+            <div className="space-y-3 mb-4">
+              <div className="relative">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-green-500">●</span>
+                <Input placeholder={t("ride.from", lang)} value={from} onChange={(e) => setFrom(e.target.value)} onFocus={() => setActiveField("from")} onBlur={() => setTimeout(() => setActiveField(null), 200)} className="pr-10 h-12 border-zinc-200 focus:border-black" />
+              </div>
+              <div className="flex justify-center gap-2">
+                <button onClick={() => { const t = from; setFrom(to); setTo(t); }} className="p-2 hover:bg-zinc-100 rounded-lg">⇅</button>
+                <button onClick={() => setFrom(lang === "ar" ? "موقعي الحالي" : "My location")} className="px-3 py-1.5 text-xs bg-zinc-100 hover:bg-zinc-200 rounded-lg text-black">📍 {t("ride.myLocation", lang)}</button>
+              </div>
+              <div className="relative">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-red-500">■</span>
+                <Input placeholder={t("ride.to", lang)} value={to} onChange={(e) => setTo(e.target.value)} onFocus={() => setActiveField("to")} onBlur={() => setTimeout(() => setActiveField(null), 200)} className="pr-10 h-12 border-zinc-200 focus:border-black" />
+              </div>
+              {activeField && (<div className="bg-white border border-zinc-200 rounded-xl shadow-lg max-h-60 overflow-y-auto z-20">
+                {popularPlaces.map((p) => (<button key={p.id} onClick={() => { activeField === "from" ? setFrom(p.name) : setTo(p.name); setActiveField(null); }} className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 text-right border-b border-zinc-50"><span className="text-xl">📍</span><div><div className="text-sm text-black">{p.name}</div><div className="text-xs text-zinc-400">{p.city}</div></div></button>))}
+                {allCities.slice(0, 15).map((c, i) => (<button key={i} onClick={() => { activeField === "from" ? setFrom(c.name) : setTo(c.name); setActiveField(null); }} className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 text-right border-b border-zinc-50"><span className="text-xl">🏙️</span><div><div className="text-sm text-black">{c.name}</div><div className="text-xs text-zinc-400">{c.region}</div></div></button>))}
+              </div>)}
+            </div>
+            {from && to && (<div className="bg-zinc-50 rounded-xl p-3 mb-4 grid grid-cols-3 gap-2 text-center text-sm"><div><div className="text-zinc-500 text-xs">{t("ride.distance", lang)}</div><div className="font-bold text-black">{calc.distance} {t("common.km", lang)}</div></div><div><div className="text-zinc-500 text-xs">{t("ride.duration", lang)}</div><div className="font-bold text-black">{calc.duration} {t("common.min", lang)}</div></div><div><div className="text-zinc-500 text-xs">{t("ride.surge", lang)}</div><div className="font-bold text-black">{calc.surge}x</div></div></div>)}
+            <div className="space-y-2 mb-4">
+              <h3 className="font-bold text-black mb-2">{t("ride.chooseService", lang)}</h3>
+              {prices.map((opt) => (<button key={opt.id} onClick={() => setSelectedService(opt.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${selectedService === opt.id ? "border-black bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"}`}><span className="text-3xl">{opt.emoji}</span><div className="flex-1 text-right"><div className="font-bold text-black">{lang === "ar" ? opt.name : t(`services.${opt.id}`, lang)}</div><div className="text-xs text-zinc-500">{opt.desc}</div></div><div className="text-left"><div className="font-bold text-black">{opt.price} ر.س</div><div className="text-xs text-zinc-500">{opt.seats} {t("ride.seats", lang)}</div></div></button>))}
+            </div>
+            <div className="mb-4">
+              <h3 className="font-bold text-black mb-2">{t("ride.paymentMethod", lang)}</h3>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">💵 {t("ride.cash", lang)}</SelectItem><SelectItem value="wallet">💰 {t("ride.wallet", lang)} ({user?.walletBalance || 0})</SelectItem><SelectItem value="card">💳 {t("ride.card", lang)}</SelectItem><SelectItem value="paypal">💳 PayPal</SelectItem><SelectItem value="stc_pay">📱 STC Pay</SelectItem></SelectContent></Select>
+            </div>
+            {step === "search" ? (<Button onClick={handleBook} className="w-full bg-black hover:bg-zinc-800 h-12 text-lg" disabled={!from || !to}>{user ? t("ride.confirm", lang) : t("ride.loginFirst", lang)}</Button>) : (<div className="flex gap-2"><Button variant="outline" onClick={() => setStep("search")} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={confirmBooking} className="flex-1 bg-black hover:bg-zinc-800 h-12">{t("ride.confirmBooking", lang)}</Button></div>)}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== CHAT DIALOG =====
+function ChatDialog({ open, onOpenChange, tripId, currentUserId, otherUserId, otherName, lang }: { open: boolean; onOpenChange: (o: boolean) => void; tripId: string; currentUserId: string; otherUserId: string; otherName: string; lang: Lang }) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMsgCount = useRef(0);
+
+  useEffect(() => {
+    if (!open || !tripId) return;
+    const fetchMessages = async () => { try { const res = await fetch(`/api/chat?tripId=${tripId}&userId=${currentUserId}`); const data = await res.json(); if (Array.isArray(data)) { setMessages(prev => { if (prev.length !== data.length) return data; return prev; }); } } catch {} };
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 2000);
+    return () => clearInterval(interval);
+  }, [open, tripId, currentUserId]);
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { if (messages.length > prevMsgCount.current && prevMsgCount.current > 0) safePlaySound(playMessageSound); prevMsgCount.current = messages.length; }, [messages.length]);
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId, senderId: currentUserId, receiverId: otherUserId, message: newMessage, messageType: "text" }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMessages(prev => [...prev, data]); setNewMessage("");
+    } catch {} finally { setSending(false); }
   };
 
   return (
-    <Dialog open={!!listing} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
-        <DialogHeader className="p-4 border-b sticky top-0 bg-background z-10">
-          <DialogTitle className="text-right font-cairo text-lg line-clamp-1">
-            {listing.title}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="grid md:grid-cols-2 gap-4 p-4">
-          {/* Images */}
-          <div className="space-y-2">
-            <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden">
-              {images[activeImage] ? (
-                 
-                <img
-                  src={images[activeImage]}
-                  alt={listing.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-                  <ImageIcon className="h-16 w-16 mb-2" />
-                  <span>لا توجد صورة</span>
-                </div>
-              )}
-            </div>
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto">
-                {images.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImage(i)}
-                    className={`w-16 h-16 rounded-md overflow-hidden border-2 shrink-0 ${
-                      activeImage === i ? "border-primary" : "border-transparent"
-                    }`}
-                  >
-                    { }
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Details */}
-          <div className="space-y-4">
-            {/* Price */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-cairo font-bold text-primary tabular-nums">
-                  {formatPrice(listing.price, listing.currency)}
-                </div>
-                {listing.isFeatured && (
-                  <Badge variant="secondary" className="bg-accent text-accent-foreground mt-1">
-                    <Award className="h-3 w-3 ml-1" />
-                    إعلان مميز
-                  </Badge>
-                )}
-              </div>
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onToggleFavorite(listing.id)}
-                  aria-label="مفضلة"
-                >
-                  <Heart className={`h-4 w-4 ${isFavorite ? "fill-destructive text-destructive" : ""}`} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const url = `${window.location.origin}/?listing=${listing.id}`;
-                    navigator.clipboard.writeText(url);
-                    toast({ title: "تم نسخ الرابط", duration: 1500 });
-                  }}
-                  aria-label="مشاركة"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md h-[600px] flex flex-col">
+        <DialogHeader><DialogTitle>{lang === "ar" ? "محادثة مع" : "Chat with"} {otherName}</DialogTitle></DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-3 p-2">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.senderId === currentUserId ? "justify-start" : "justify-end"}`}>
+              <div className={`max-w-[75%] p-3 rounded-2xl ${msg.senderId === currentUserId ? "bg-black text-white rounded-bl-sm" : "bg-zinc-100 text-black rounded-br-sm"}`}>
+                <p className="text-sm">{msg.message}</p>
+                <div className={`text-[10px] mt-1 ${msg.senderId === currentUserId ? "text-zinc-400" : "text-zinc-500"}`}>{new Date(msg.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}{msg.senderId === currentUserId && (msg.isRead ? " ✓✓" : " ✓")}</div>
               </div>
             </div>
-
-            {/* Specs grid */}
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="bg-muted/50 rounded-md p-2">
-                <div className="text-xs text-muted-foreground">القسم</div>
-                <div className="font-cairo">{listing.category.name}</div>
-              </div>
-              <div className="bg-muted/50 rounded-md p-2">
-                <div className="text-xs text-muted-foreground">المدينة</div>
-                <div className="font-cairo">{listing.city}</div>
-              </div>
-              {listing.district && (
-                <div className="bg-muted/50 rounded-md p-2">
-                  <div className="text-xs text-muted-foreground">الحي</div>
-                  <div className="font-cairo">{listing.district}</div>
-                </div>
-              )}
-              {listing.year && (
-                <div className="bg-muted/50 rounded-md p-2">
-                  <div className="text-xs text-muted-foreground">سنة الصنع</div>
-                  <div className="font-cairo">{listing.year}</div>
-                </div>
-              )}
-              {listing.kilometers != null && (
-                <div className="bg-muted/50 rounded-md p-2">
-                  <div className="text-xs text-muted-foreground">الممشى</div>
-                  <div className="font-cairo">{formatKilometers(listing.kilometers)}</div>
-                </div>
-              )}
-              {listing.condition && (
-                <div className="bg-muted/50 rounded-md p-2">
-                  <div className="text-xs text-muted-foreground">الحالة</div>
-                  <div className="font-cairo">
-                    {listing.condition === "new" ? "جديد" : "مستعمل"}
-                  </div>
-                </div>
-              )}
-              <div className="bg-muted/50 rounded-md p-2">
-                <div className="text-xs text-muted-foreground">المشاهدات</div>
-                <div className="font-cairo tabular-nums">{formatNumber(listing.views)}</div>
-              </div>
-            </div>
-
-            {/* Seller */}
-            <Card className="p-3">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-primary text-primary-foreground font-cairo">
-                    {listing.user.username.slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="font-cairo font-bold truncate">{listing.user.username}</span>
-                    {listing.user.isVerified && (
-                      <Verified className="h-4 w-4 text-primary fill-primary/20" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <span>{listing.user.rating}</span>
-                    <span>•</span>
-                    <Clock className="h-3 w-3" />
-                    <span>{formatArabicDate(new Date(listing.createdAt))}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Contact buttons */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button onClick={handleCall} className="h-12 text-base">
-                <Phone className="h-5 w-5 ml-2" />
-                اتصال
-              </Button>
-              <Button
-                onClick={handleWhatsApp}
-                variant="secondary"
-                className="h-12 text-base bg-green-600 hover:bg-green-700 text-white"
-              >
-                <MessageCircle className="h-5 w-5 ml-2" />
-                واتساب
-              </Button>
-            </div>
-
-            {/* Promote to Featured button (only if not already featured) */}
-            {!listing.isFeatured && onPromoteFeatured && (
-              <Button
-                variant="outline"
-                className="w-full h-11 text-sm border-amber-400 text-amber-700 hover:bg-amber-50 bg-amber-50/30"
-                onClick={() => onPromoteFeatured(listing.id, listing.title, 50)}
-              >
-                <Award className="h-4 w-4 ml-2" />
-                ترقية الإعلان لمميز - 50 ريال (مدى / Apple Pay)
-              </Button>
-            )}
-            {listing.isFeatured && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-2 text-sm text-amber-800">
-                <Award className="h-4 w-4" />
-                <span>هذا الإعلان مميز بالفعل ✓</span>
-              </div>
-            )}
-          </div>
+          ))}
+          <div ref={messagesEndRef} />
         </div>
-
-        {/* Description */}
-        <div className="px-4 pb-4">
-          <h4 className="font-cairo font-bold text-base mb-2">الوصف</h4>
-          <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">
-            {listing.description}
-          </p>
-        </div>
-
-        <Separator />
-
-        {/* Comments */}
-        <div className="px-4 py-4">
-          <h4 className="font-cairo font-bold text-base mb-3">
-            التعليقات ({safeComments.length})
-          </h4>
-
-          {/* Add comment */}
-          <Card className="p-3 mb-4 bg-muted/30">
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  placeholder="الاسم"
-                  value={commentName}
-                  onChange={(e) => setCommentName(e.target.value)}
-                  className="h-9"
-                />
-                <Input
-                  placeholder="الجوال (اختياري)"
-                  value={commentPhone}
-                  onChange={(e) => setCommentPhone(e.target.value)}
-                  className="h-9"
-                />
-              </div>
-              <Textarea
-                placeholder="اكتب تعليقك..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                rows={2}
-                className="resize-none"
-              />
-              <Button onClick={handleSubmitComment} size="sm" className="w-full sm:w-auto">
-                نشر التعليق
-              </Button>
-            </div>
-          </Card>
-
-          {/* Comments list */}
-          <div className="space-y-3">
-            {safeComments.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                لا توجد تعليقات بعد. كن أول من يعلّق!
-              </p>
-            ) : (
-              safeComments.map((comment) => (
-                <div key={comment.id} className="flex gap-2">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-cairo">
-                      {comment.username.slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="bg-muted/50 rounded-lg p-2.5">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-cairo font-bold text-sm">{comment.username}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatArabicDate(new Date(comment.createdAt))}
-                        </span>
-                      </div>
-                      <p className="text-sm">{comment.content}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        <div className="flex gap-2 p-2 border-t border-zinc-200">
+          <Input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !sending) sendMessage(); }} placeholder={lang === "ar" ? "اكتب رسالة..." : "Type a message..."} className="flex-1" />
+          <Button onClick={sendMessage} disabled={sending || !newMessage.trim()} className="bg-black hover:bg-zinc-800">{lang === "ar" ? "إرسال" : "Send"}</Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ===== ADD LISTING DIALOG =====
-function AddListingDialog({
-  categories,
-  onClose,
-  onAdded,
-}: {
-  categories: Category[];
-  onClose: () => void;
-  onAdded: () => void;
-}) {
-  const { toast } = useToast();
-  const { data: session } = useSession();
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    price: "",
-    city: "جدة",
-    district: "",
-    categoryId: "",
-    year: "",
-    kilometers: "",
-    condition: "used",
-    phone: "",
-    whatsapp: "",
-    username: "",
-    imageUrl: "",
-  });
-  const [images, setImages] = useState<string[]>([]);
+// ===== TRIPS VIEW =====
+function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [filter, setFilter] = useState<"all" | "completed" | "cancelled">("all");
+  const [loading, setLoading] = useState(true);
 
-  const handleAddImage = () => {
-    if (form.imageUrl.trim()) {
-      setImages([...images, form.imageUrl.trim()]);
-      setForm({ ...form, imageUrl: "" });
-    }
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/trips?userId=${user.id}`).then((r) => r.json()).then((d) => { setTrips(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+  }, [user]);
+
+  const filtered = trips.filter((t) => filter === "all" || t.status === filter);
+  if (loading) return <div className="text-center py-20">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      <h1 className="text-3xl font-bold text-black mb-6">{t("trips.title", lang)}</h1>
+      <div className="flex gap-2 mb-6">
+        {[{ id: "all", l: t("trips.all", lang) }, { id: "completed", l: t("trips.completed", lang) }, { id: "cancelled", l: t("trips.cancelled", lang) }].map((tab) => (
+          <Button key={tab.id} variant={filter === tab.id ? "default" : "outline"} onClick={() => setFilter(tab.id as typeof filter)} className={filter === tab.id ? "bg-black hover:bg-zinc-800" : ""}>{tab.l}</Button>
+        ))}
+      </div>
+      <div className="space-y-3">
+        {filtered.map((trip) => (
+          <Card key={trip.id} className="p-4 border-zinc-200">
+            <div className="flex items-start gap-4">
+              <span className="text-3xl">{serviceTypes.find((s) => s.id === trip.serviceType)?.emoji || "🚗"}</span>
+              <div className="flex-1">
+                <div className="flex justify-between mb-2">
+                  <div className="flex gap-2 items-center">
+                    <Badge variant={trip.status === "completed" ? "default" : "destructive"} className={trip.status === "completed" ? "bg-green-600" : trip.status === "ongoing" ? "bg-blue-600" : ""}>{trip.status === "completed" ? t("trips.completedBadge", lang) : trip.status === "ongoing" ? t("trips.ongoingBadge", lang) : t("trips.cancelledBadge", lang)}</Badge>
+                    <span className="text-sm text-zinc-500">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span>
+                  </div>
+                  <span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  <div className="flex items-center gap-2"><span className="text-green-500">●</span><span className="text-zinc-600">{trip.fromAddress}</span></div>
+                  <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-zinc-600">{trip.toAddress}</span></div>
+                </div>
+                {trip.unpaidAmount ? <div className="mt-2 text-xs text-red-500">⚠️ {lang === "ar" ? "مبلغ غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div> : null}
+              </div>
+            </div>
+          </Card>
+        ))}
+        {filtered.length === 0 && <div className="text-center py-20 text-zinc-500">{t("trips.noTrips", lang)}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ===== DRIVER VIEW =====
+function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [driverData, setDriverData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [online, setOnline] = useState(false);
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  const [availableTrips, setAvailableTrips] = useState<Trip[]>([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [paymentDialog, setPaymentDialog] = useState<{ open: boolean; tripId?: string; finalPrice?: number }>({ open: false });
+  const [cashReceived, setCashReceived] = useState("");
+  const { toast } = useToast();
+  const prevTripsCount = useRef(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/drivers/active-trip?driverId=${user.id}`);
+        if (res.ok) { const data = await res.json(); setActiveTrip(data.activeTrip); setAvailableTrips(data.availableTrips || []); if (data.availableTrips.length > prevTripsCount.current) safePlaySound(playNewRequestSound); prevTripsCount.current = data.availableTrips.length; }
+      } catch {}
+      setLoading(false);
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const acceptTrip = async (tripId: string) => {
+    if (!user) return;
+    try {
+      const res = await fetch("/api/trips/accept", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId, driverId: user.id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTimeout(() => toast({ title: lang === "ar" ? "تم قبول الرحلة! ✅" : "Trip accepted! ✅" }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
   };
 
-  const handleRemoveImage = (idx: number) => {
-    setImages(images.filter((_, i) => i !== idx));
+  const driverArrived = async () => {
+    if (!activeTrip || !user) return;
+    try {
+      const res = await fetch("/api/trips/driver-arrived", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: activeTrip.id, driverId: user.id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTimeout(() => toast({ title: lang === "ar" ? "تم إعلان وصولك" : "Arrival announced" }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  };
+
+  const startTrip = async () => {
+    if (!activeTrip || !user) return;
+    try {
+      const res = await fetch("/api/trips/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: activeTrip.id, driverId: user.id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTimeout(() => toast({ title: lang === "ar" ? "بدأت الرحلة! 🔒" : "Trip started! 🔒" }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  };
+
+  const completeWithPayment = async () => {
+    if (!activeTrip || !user) return;
+    const received = parseFloat(cashReceived) || 0;
+    const finalPrice = activeTrip.finalPrice || activeTrip.price;
+    const unpaid = Math.max(0, finalPrice - received);
+    if (unpaid > 0 && !confirm(lang === "ar" ? `المبلغ غير المدفوع: ${unpaid} ر.س\nسيتم إبلاغ الإدارة. متابعة؟` : `Unpaid: ${unpaid} SAR. Continue?`)) return;
+    try {
+      const res = await fetch("/api/trips/complete-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: activeTrip.id, driverId: user.id, cashReceived: received }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTimeout(() => toast({ title: data.message }), 0);
+      setPaymentDialog({ open: false }); setCashReceived("");
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  };
+
+  if (loading) return <div className="text-center py-20">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>;
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-6">
+      <Card className="p-6 mb-6 border-zinc-200 bg-black text-white">
+        <div className="flex items-center justify-between">
+          <div><h2 className="text-2xl font-bold mb-1">{t("driver.status", lang)}</h2><p className="text-zinc-400">{online ? t("driver.onlineDesc", lang) : t("driver.offlineDesc", lang)}</p></div>
+          <div className="flex items-center gap-3"><span className={online ? "text-green-400" : "text-zinc-500"}>{online ? t("driver.online", lang) : t("driver.offline", lang)}</span><Switch checked={online} onCheckedChange={setOnline} /></div>
+        </div>
+      </Card>
+
+      {activeTrip && (
+        <Card className="p-6 mb-6 border-2 border-blue-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-black text-lg">{t("driver.activeTrip", lang)}</h3>
+            <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+          </div>
+          <div className="bg-zinc-50 p-3 rounded-xl mb-4">
+            <div className="flex items-center gap-2 mb-2"><span className="text-green-500">●</span><span className="text-black">{activeTrip.fromAddress}</span></div>
+            <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-black">{activeTrip.toAddress}</span></div>
+            <div className="mt-2 flex justify-between text-sm"><span className="text-zinc-500">{t("ride.cost", lang)}</span><span className="font-bold text-black">{activeTrip.finalPrice || activeTrip.price} ر.س</span></div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {activeTrip.status === "accepted" && <Button onClick={driverArrived} className="bg-blue-600 hover:bg-blue-700 flex-1">🚗 {t("driver.arriveBtn", lang)}</Button>}
+            {activeTrip.status === "driver_arrived" && <Button onClick={startTrip} className="bg-green-600 hover:bg-green-700 flex-1">🚀 {t("driver.startTrip", lang)}</Button>}
+            {activeTrip.status === "ongoing" && <Button onClick={() => setPaymentDialog({ open: true, tripId: activeTrip.id, finalPrice: activeTrip.finalPrice || activeTrip.price })} className="bg-black hover:bg-zinc-800 flex-1">✅ {t("driver.completeTrip", lang)}</Button>}
+          </div>
+        </Card>
+      )}
+
+      {online && !activeTrip && (
+        <div>
+          <h3 className="text-xl font-bold text-black mb-3">{t("driver.availableRequests", lang)}</h3>
+          <div className="space-y-3">
+            {availableTrips.map((trip) => (
+              <Card key={trip.id} className="p-4 border-zinc-200">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-12 h-12"><AvatarFallback>{trip.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
+                  <div className="flex-1">
+                    <div className="font-bold text-black">{trip.user?.name || "Rider"}</div>
+                    <div className="text-sm text-zinc-500">{trip.fromAddress} ← {trip.toAddress} • {trip.distance} {t("common.km", lang)}</div>
+                  </div>
+                  <div className="text-left"><div className="font-bold text-black">{trip.price} ر.س</div><Button size="sm" onClick={() => acceptTrip(trip.id)} className="bg-black hover:bg-zinc-800 mt-1">{t("driver.accept", lang)}</Button></div>
+                </div>
+              </Card>
+            ))}
+            {availableTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد طلبات حالياً" : "No requests"}</Card>}
+          </div>
+        </div>
+      )}
+
+      {!online && !activeTrip && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">😴</div><h3 className="text-xl font-bold text-black mb-2">{t("driver.offlineMsg", lang)}</h3><p className="text-zinc-500 mb-6">{t("driver.offlineDescMsg", lang)}</p><Button onClick={() => setOnline(true)} className="bg-black hover:bg-zinc-800 h-12 px-8">{t("driver.startWork", lang)}</Button></Card>)}
+
+      {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} />}
+
+      <Dialog open={paymentDialog.open} onOpenChange={(o) => setPaymentDialog({ ...paymentDialog, open: o })}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{lang === "ar" ? "تأكيد الدفع وإنهاء الرحلة" : "Confirm Payment"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-zinc-50 p-4 rounded-xl"><div className="flex justify-between"><span className="text-zinc-500">{lang === "ar" ? "السعر الإجمالي" : "Total"}</span><span className="font-bold text-black text-xl">{paymentDialog.finalPrice} ر.س</span></div></div>
+            <div><Label>{lang === "ar" ? "المبلغ المستلم بالكاش" : "Cash received"}</Label><Input type="number" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} placeholder="0" className="h-12 text-lg" /></div>
+            {cashReceived && parseFloat(cashReceived) < (paymentDialog.finalPrice || 0) && (<div className="bg-red-50 border border-red-200 p-3 rounded-xl"><div className="flex justify-between"><span className="text-red-600 font-medium">⚠️ {lang === "ar" ? "المبلغ غير المدفوع" : "Unpaid"}</span><span className="font-bold text-red-600">{(paymentDialog.finalPrice || 0) - parseFloat(cashReceived)} ر.س</span></div><p className="text-xs text-red-500 mt-2">{lang === "ar" ? "سيتم إبلاغ الإدارة فوراً وخصم المبلغ من محفظة الراكب" : "Admin will be notified and amount deducted from rider's wallet"}</p></div>)}
+            <Button onClick={completeWithPayment} className="w-full bg-black hover:bg-zinc-800 h-12">{lang === "ar" ? "تأكيد الدفع وإنهاء الرحلة" : "Confirm & Complete"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ===== DRIVER REGISTER VIEW =====
+function DriverRegisterView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [step, setStep] = useState(1);
+  const [car, setCar] = useState({ model: "", plate: "", color: "", year: "" });
+  const [license, setLicense] = useState({ number: "", expiry: "" });
+  const [docs, setDocs] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const { toast } = useToast();
+
+  const docTypes = [{ id: "license", l: t("driverReg.license", lang), i: "📄" }, { id: "national_id", l: t("driverReg.nationalId", lang), i: "🆔" }, { id: "car_registration", l: t("driverReg.carRegistration", lang), i: "📋" }, { id: "insurance", l: t("driverReg.insurance", lang), i: "🛡️" }, { id: "profile_photo", l: t("driverReg.profilePhoto", lang), i: "📸" }, { id: "vehicle_photo", l: t("driverReg.vehiclePhoto", lang), i: "🚗" }];
+
+  const handleFile = (file: File, docType: string) => {
+    if (file.size > 5 * 1024 * 1024) { toast({ title: lang === "ar" ? "الملف كبير جداً" : "File too large", variant: "destructive" }); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setDocs((p) => ({ ...p, [docType]: reader.result as string })); };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async () => {
-    if (!form.title.trim() || !form.description.trim() || !form.price || !form.categoryId || !form.phone) {
-      toast({
-        title: "بيانات ناقصة",
-        description: "الرجاء ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSubmitting(true);
+    if (!user) return;
+    setLoading(true);
     try {
-      const res = await fetch("/api/listings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          images,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "فشل النشر");
-      }
-
-      toast({
-        title: "تم نشر إعلانك بنجاح! 🎉",
-        description: "سوف يظهر إعلانك مباشرة في النتائج",
-      });
-      onAdded();
-    } catch (e) {
-      toast({
-        title: "خطأ في النشر",
-        description: e instanceof Error ? e.message : "حاول مرة أخرى",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
-    }
+      const documents = Object.entries(docs).map(([type, fileData]) => ({ type, fileName: `${type}.jpg`, fileData, mimeType: "image/jpeg", fileSize: fileData.length }));
+      const res = await fetch("/api/drivers/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, carModel: car.model, carPlate: car.plate, carColor: car.color, carYear: car.year, licenseNumber: license.number, licenseExpiry: license.expiry, documents }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDone(true);
+      setTimeout(() => toast({ title: lang === "ar" ? "تم التسجيل! 🎉" : "Registered! 🎉" }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل التسجيل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+    finally { setLoading(false); }
   };
 
-  // Find subcategories for selected parent
-  const selectedParent = categories.find((c) => c.id === form.categoryId);
-  const allCategories = useMemo(() => {
-    const result: { id: string; name: string; slug: string }[] = [];
-    for (const cat of categories) {
-      result.push({ id: cat.id, name: cat.name, slug: cat.slug });
-      for (const child of cat.children) {
-        result.push({ id: child.id, name: `${cat.name} - ${child.name}`, slug: child.slug });
-      }
-    }
-    return result;
-  }, [categories]);
+  if (done) return (<div className="max-w-md mx-auto px-4 py-20 text-center"><div className="text-6xl mb-4">✅</div><h2 className="text-2xl font-bold text-black mb-2">{t("driverReg.success", lang)}</h2><p className="text-zinc-500 mb-6">{t("driverReg.successDesc", lang)}</p></div>);
 
   return (
-    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle className="text-right font-cairo text-xl flex items-center gap-2">
-          <Plus className="h-5 w-5 text-primary" />
-          أضف إعلانك المجاني
-        </DialogTitle>
-      </DialogHeader>
+    <div className="max-w-2xl mx-auto px-4 py-6">
+      <h1 className="text-3xl font-bold text-black mb-2">{t("driverReg.title", lang)}</h1>
+      <p className="text-zinc-500 mb-6">{t("driverReg.step", lang)} {step} {t("driverReg.of", lang)} 4</p>
+      <Progress value={(step / 4) * 100} className="mb-6" />
+      {step === 1 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.carInfo", lang)}</h2><div className="space-y-4"><div><Label>{t("driverReg.carModel", lang)}</Label><Input value={car.model} onChange={(e) => setCar({ ...car, model: e.target.value })} placeholder={t("driverReg.carModelPlaceholder", lang)} /></div><div><Label>{t("driverReg.carPlate", lang)}</Label><Input value={car.plate} onChange={(e) => setCar({ ...car, plate: e.target.value })} /></div><div><Label>{t("driverReg.carColor", lang)}</Label><Input value={car.color} onChange={(e) => setCar({ ...car, color: e.target.value })} /></div><div><Label>{t("driverReg.carYear", lang)}</Label><Input value={car.year} onChange={(e) => setCar({ ...car, year: e.target.value })} placeholder="2023" /></div></div><Button onClick={() => setStep(2)} className="w-full bg-black hover:bg-zinc-800 h-12 mt-6" disabled={!car.model || !car.plate}>{t("driverReg.next", lang)} ←</Button></Card>)}
+      {step === 2 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.licenseInfo", lang)}</h2><div className="space-y-4"><div><Label>{t("driverReg.licenseNumber", lang)}</Label><Input value={license.number} onChange={(e) => setLicense({ ...license, number: e.target.value })} /></div><div><Label>{t("driverReg.licenseExpiry", lang)}</Label><Input type="date" value={license.expiry} onChange={(e) => setLicense({ ...license, expiry: e.target.value })} /></div></div><div className="flex gap-2 mt-6"><Button variant="outline" onClick={() => setStep(1)} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={() => setStep(3)} className="flex-1 bg-black hover:bg-zinc-800 h-12" disabled={!license.number}>{t("driverReg.next", lang)} ←</Button></div></Card>)}
+      {step === 3 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.documents", lang)}</h2><div className="grid grid-cols-2 gap-4">{docTypes.map((doc) => (<div key={doc.id} className="border-2 border-dashed border-zinc-200 rounded-xl p-4 text-center"><div className="text-3xl mb-2">{doc.i}</div><div className="text-sm font-medium text-black mb-2">{doc.l}</div>{docs[doc.id] ? (<div className="relative"><img src={docs[doc.id]} alt={doc.l} className="w-full h-24 object-cover rounded-lg" /><button onClick={() => { const d = { ...docs }; delete d[doc.id]; setDocs(d); }} className="absolute top-1 left-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs">✕</button></div>) : (<label className="cursor-pointer"><input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, doc.id); }} /><span className="text-xs text-blue-600">{t("driverReg.upload", lang)}</span></label>)}</div>))}</div><div className="flex gap-2 mt-6"><Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={() => setStep(4)} className="flex-1 bg-black hover:bg-zinc-800 h-12" disabled={Object.keys(docs).length < 4}>{t("driverReg.next", lang)} ←</Button></div></Card>)}
+      {step === 4 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.review", lang)}</h2><div className="space-y-3 mb-6"><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500 mb-1">{t("driverReg.carInfo", lang)}</div><div className="font-medium text-black">{car.model} - {car.plate} - {car.color} - {car.year}</div></div><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500 mb-1">{t("driverReg.licenseInfo", lang)}</div><div className="font-medium text-black">{license.number}</div></div><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500 mb-1">{t("driverReg.documents", lang)}</div><div className="font-medium text-black">{Object.keys(docs).length} {lang === "ar" ? "مستند" : "documents"}</div></div></div><div className="flex gap-2"><Button variant="outline" onClick={() => setStep(3)} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={handleSubmit} disabled={loading} className="flex-1 bg-black hover:bg-zinc-800 h-12">{loading ? t("driverReg.submitting", lang) : t("driverReg.submit", lang)}</Button></div></Card>)}
+    </div>
+  );
+}
 
-      <div className="space-y-4 py-4">
-        {/* Title */}
-        <div>
-          <Label className="mb-1.5 block">عنوان الإعلان *</Label>
-          <Input
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="مثال: تويوتا كامري 2022 فل كامل"
-            maxLength={100}
-          />
-        </div>
+// ===== BANK VIEW =====
+function BankView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [paypalStatus, setPaypalStatus] = useState<{ connected: boolean; email?: string }>({ connected: false });
+  const [showAdd, setShowAdd] = useState(false);
+  const [showPaypal, setShowPaypal] = useState(false);
+  const [newAcc, setNewAcc] = useState({ bankName: "", accountName: "", iban: "" });
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const { toast } = useToast();
 
-        {/* Category */}
-        <div>
-          <Label className="mb-1.5 block">القسم *</Label>
-          <Select
-            value={form.categoryId}
-            onValueChange={(v) => setForm({ ...form, categoryId: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="اختر القسم" />
-            </SelectTrigger>
-            <SelectContent>
-              {allCategories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedParent?.slug === "cars" && (
-            <p className="text-xs text-muted-foreground mt-1">سيتم عرض حقول السيارات عند اختيار قسم سيارات</p>
-          )}
-        </div>
+  const loadData = useCallback(() => {
+    if (!user) return;
+    fetch(`/api/bank-accounts?userId=${user.id}`).then((r) => r.json()).then((d) => setAccounts(Array.isArray(d) ? d : []));
+    fetch(`/api/paypal?userId=${user.id}`).then((r) => r.json()).then((d) => setPaypalStatus(d));
+  }, [user]);
 
-        {/* Description */}
-        <div>
-          <Label className="mb-1.5 block">الوصف *</Label>
-          <Textarea
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="اكتب وصفاً تفصيلياً لمعروضك..."
-            rows={4}
-            maxLength={2000}
-          />
-        </div>
+  useEffect(() => { loadData(); }, [loadData]);
 
-        {/* Price */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="mb-1.5 block">السعر (ريال) *</Label>
-            <Input
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <Label className="mb-1.5 block">الحالة</Label>
-            <Select
-              value={form.condition}
-              onValueChange={(v) => setForm({ ...form, condition: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="used">مستعمل</SelectItem>
-                <SelectItem value="new">جديد</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+  const addAccount = async () => {
+    if (!user || !newAcc.bankName || !newAcc.iban) { toast({ title: lang === "ar" ? "بيانات ناقصة" : "Missing data", variant: "destructive" }); return; }
+    try {
+      const res = await fetch("/api/bank-accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...newAcc, userId: user.id, accountType: "bank" }) });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      setShowAdd(false); setNewAcc({ bankName: "", accountName: "", iban: "" }); loadData();
+      setTimeout(() => toast({ title: lang === "ar" ? "تمت الإضافة ✅" : "Added ✅" }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  };
 
-        {/* Year & KM - shown for cars */}
-        {(selectedParent?.slug === "cars" || categories.some(c => c.children.some(ch => ch.id === form.categoryId && c.slug === "cars"))) && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="mb-1.5 block">سنة الصنع</Label>
-              <Input
-                type="number"
-                value={form.year}
-                onChange={(e) => setForm({ ...form, year: e.target.value })}
-                placeholder="2022"
-              />
-            </div>
-            <div>
-              <Label className="mb-1.5 block">الممشى (كم)</Label>
-              <Input
-                type="number"
-                value={form.kilometers}
-                onChange={(e) => setForm({ ...form, kilometers: e.target.value })}
-                placeholder="45000"
-              />
-            </div>
-          </div>
-        )}
+  const connectPaypal = async () => {
+    if (!user || !paypalEmail) { toast({ title: lang === "ar" ? "أدخل بريد PayPal" : "Enter PayPal email", variant: "destructive" }); return; }
+    try {
+      const res = await fetch("/api/paypal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, paypalEmail, accountName: user.name }) });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      setShowPaypal(false); setPaypalEmail(""); loadData();
+      setTimeout(() => toast({ title: lang === "ar" ? "تم ربط PayPal ✅" : "PayPal connected ✅" }), 0);
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  };
 
-        {/* Location */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="mb-1.5 block">المدينة *</Label>
-            <Select
-              value={form.city}
-              onValueChange={(v) => setForm({ ...form, city: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SAUDI_CITIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="mb-1.5 block">الحي</Label>
-            <Input
-              value={form.district}
-              onChange={(e) => setForm({ ...form, district: e.target.value })}
-              placeholder="النرجس"
-            />
-          </div>
-        </div>
-
-        {/* Contact */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="mb-1.5 block">الجوال *</Label>
-            <Input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="05xxxxxxxx"
-              dir="ltr"
-            />
-          </div>
-          <div>
-            <Label className="mb-1.5 block">واتساب</Label>
-            <Input
-              value={form.whatsapp}
-              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-              placeholder="05xxxxxxxx"
-              dir="ltr"
-            />
-          </div>
-        </div>
-
-        <div className="bg-muted/40 rounded-lg p-3 flex items-center gap-2 text-sm">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-cairo">
-              {session?.user?.name?.slice(0, 2) || "ح"}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="text-xs text-muted-foreground">يتم النشر باسم</div>
-            <div className="font-cairo font-bold">{session?.user?.name}</div>
-          </div>
-        </div>
-
-        {/* Images - رفع من الجهاز أو رابط */}
-        <div>
-          <Label className="mb-1.5 block">الصور</Label>
-          {/* رفع من الجهاز */}
-          <div className="mb-2">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => {
-                const files = e.target.files;
-                if (!files) return;
-                Array.from(files).forEach(file => {
-                  if (file.size > 5 * 1024 * 1024) {
-                    toast({ title: "الصورة كبيرة جداً", description: "الحد الأقصى 5 ميجابايت", variant: "destructive" });
-                    return;
-                  }
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    setImages(prev => [...prev, reader.result as string]);
-                  };
-                  reader.readAsDataURL(file);
-                });
-                e.target.value = "";
-              }}
-              className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-cairo file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-            />
-            <p className="text-xs text-muted-foreground mt-1">اضغط لاختيار صور من جهازك (حد أقصى 5 ميجابايت للصورة)</p>
-          </div>
-          {/* أو رابط */}
-          <div className="flex gap-2">
-            <Input
-              value={form.imageUrl}
-              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-              placeholder="أو الصق رابط صورة (URL)"
-              dir="ltr"
-            />
-            <Button type="button" variant="secondary" onClick={handleAddImage}>
-              <Plus className="h-4 w-4 ml-1" />
-              إضافة
-            </Button>
-          </div>
-          {images.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              {images.map((img, i) => (
-                <div key={i} className="relative aspect-square rounded-md overflow-hidden group">
-                  { }
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => handleRemoveImage(i)}
-                    className="absolute top-1 left-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="حذف"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-1">
-            أضف روابط مباشرة لصور معروضتك من الإنترنت
-          </p>
-        </div>
-
-        {/* Submit */}
-        <div className="flex gap-2 pt-2">
-          <Button onClick={handleSubmit} disabled={submitting} className="flex-1 h-12 text-base">
-            {submitting ? "جارٍ النشر..." : "نشر الإعلان"}
-          </Button>
-          <DialogClose asChild>
-            <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          </DialogClose>
-        </div>
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="flex justify-between mb-6">
+        <h1 className="text-3xl font-bold text-black">{t("bank.title", lang)}</h1>
+        <div className="flex gap-2"><Button onClick={() => setShowPaypal(true)} variant="outline" className="border-blue-200 text-blue-600">💳 PayPal</Button><Button onClick={() => setShowAdd(true)} className="bg-black hover:bg-zinc-800">{t("bank.addAccount", lang)}</Button></div>
       </div>
-    </DialogContent>
+      <Card className="p-6 mb-6 border-zinc-200 bg-zinc-50"><h2 className="font-bold text-black mb-4">{t("bank.platformAccounts", lang)}</h2><div className="space-y-3">{platformBankAccounts.map((acc) => (<div key={acc.id} className="bg-white rounded-xl p-4 border border-zinc-200"><div className="flex justify-between mb-2"><span className="font-bold text-black">{acc.bankName}</span>{acc.primary && <Badge className="bg-black">{t("bank.primary", lang)}</Badge>}</div><div className="text-sm text-zinc-500">IBAN: <span className="font-mono font-bold text-black">{acc.iban}</span></div><Button variant="outline" size="sm" className="mt-2" onClick={() => { navigator.clipboard?.writeText(acc.iban.replace(/\s/g, "")); toast({ title: t("bank.copied", lang) }); }}>{t("bank.copyIban", lang)}</Button></div>))}</div></Card>
+      <h2 className="text-lg font-bold text-black mb-3">{t("bank.myAccounts", lang)}</h2>
+      {paypalStatus.connected && (<Card className="p-4 mb-3 border-blue-200 bg-blue-50"><div className="flex items-center gap-3"><span className="text-3xl">💳</span><div className="flex-1"><div className="font-bold text-black">PayPal</div><div className="text-sm text-zinc-600">{paypalStatus.email}</div></div><Badge className="bg-green-600">{t("bank.connected", lang)}</Badge></div></Card>)}
+      {accounts.map((acc) => (<Card key={acc.id} className="p-4 mb-3 border-zinc-200"><div className="flex items-center gap-3"><span className="text-3xl">🏦</span><div className="flex-1"><div className="font-bold text-black">{acc.bankName}</div><div className="text-sm text-zinc-500 font-mono">{acc.iban}</div></div>{acc.isDefault && <Badge className="bg-black">{t("bank.default", lang)}</Badge>}</div></Card>))}
+      {accounts.length === 0 && !paypalStatus.connected && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">💳</div><p className="text-zinc-500">{t("bank.noAccounts", lang)}</p></Card>)}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}><DialogContent><DialogHeader><DialogTitle>{t("bank.addBank", lang)}</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div><Label>{t("bank.bankName", lang)}</Label><Select value={newAcc.bankName} onValueChange={(v) => setNewAcc({ ...newAcc, bankName: v })}><SelectTrigger><SelectValue placeholder={t("bank.chooseBank", lang)} /></SelectTrigger><SelectContent>{saudiBanks.map((b) => <SelectItem key={b.id} value={b.name}>{b.logo} {b.name}</SelectItem>)}</SelectContent></Select></div><div><Label>{t("bank.accountHolder", lang)}</Label><Input value={newAcc.accountName} onChange={(e) => setNewAcc({ ...newAcc, accountName: e.target.value })} /></div><div><Label>{t("bank.iban", lang)}</Label><Input value={newAcc.iban} onChange={(e) => setNewAcc({ ...newAcc, iban: e.target.value })} placeholder="SA00 0000 0000 0000 0000 0000" className="font-mono" /></div><Button onClick={addAccount} className="w-full bg-black hover:bg-zinc-800 h-12">{t("bank.add", lang)}</Button></div></DialogContent></Dialog>
+      <Dialog open={showPaypal} onOpenChange={setShowPaypal}><DialogContent><DialogHeader><DialogTitle>💳 {t("bank.connectPaypal", lang)}</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div><Label>{t("bank.paypalEmail", lang)}</Label><Input value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} placeholder="email@example.com" /></div><Button onClick={connectPaypal} className="w-full bg-blue-600 hover:bg-blue-700 h-12">{t("bank.connect", lang)}</Button></div></DialogContent></Dialog>
+    </div>
+  );
+}
+
+// ===== PROFILE VIEW =====
+function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; onLogout: () => void }) {
+  const [tab, setTab] = useState<"info" | "wallet" | "settings">("info");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  useEffect(() => { const stored = localStorage.getItem("uber_sound"); if (stored !== null) setSoundEnabled(stored === "true"); }, []);
+  if (!user) return null;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      <Card className="p-6 mb-6 border-zinc-200"><div className="flex items-center gap-4"><Avatar className="w-20 h-20"><AvatarFallback className="text-2xl bg-black text-white">{user.name.charAt(0)}</AvatarFallback></Avatar><div className="flex-1"><h1 className="text-2xl font-bold text-black">{user.name}</h1><div className="flex items-center gap-3 mt-1"><span className="flex items-center gap-1">⭐ {user.rating}</span>{user.isAdmin && <Badge className="bg-black">{t("profile.adminBadge", lang)}</Badge>}{user.isVerified && <Badge variant="secondary">{t("profile.verified", lang)}</Badge>}</div><p className="text-sm text-zinc-500 mt-1">{user.phone}</p></div></div></Card>
+      <div className="flex gap-2 mb-6">{[{ id: "info", l: t("profile.info", lang) }, { id: "wallet", l: t("profile.wallet", lang) }, { id: "settings", l: t("profile.settings", lang) }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}</Button>))}
+      </div>
+      {tab === "info" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "المعلومات الشخصية" : "Personal Info"}</h3><div className="space-y-3">{[{ l: t("profile.fullName", lang), v: user.name }, { l: t("profile.email", lang), v: user.email }, { l: t("profile.phone", lang), v: user.phone }, { l: t("profile.city", lang), v: user.city || "-" }, { l: t("profile.region", lang), v: user.region || "-" }].map((item, i) => (<div key={i} className="flex justify-between py-3 border-b border-zinc-100"><span className="text-zinc-500">{item.l}</span><span className="font-medium text-black">{item.v}</span></div>))}</div></Card>)}
+      {tab === "wallet" && (<Card className="p-6 border-zinc-200 bg-gradient-to-br from-black to-zinc-800 text-white"><p className="text-zinc-400 text-sm">{t("profile.walletBalance", lang)}</p><p className="text-4xl font-bold mt-1">{user.walletBalance} ر.س</p><Button className="mt-4 bg-white text-black hover:bg-zinc-200">{t("profile.topup", lang)}</Button></Card>)}
+      {tab === "settings" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{t("profile.notifications", lang)}</h3><div className="space-y-3"><div className="flex items-center justify-between py-3 border-b border-zinc-100"><div><div className="font-medium text-black">🔊 {lang === "ar" ? "الأصوات التنبيهية" : "Alert Sounds"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "أصوات للطلبات والإشعارات" : "Sounds for requests and notifications"}</div></div><Switch checked={soundEnabled} onCheckedChange={(checked) => { setSoundEnabled(checked); localStorage.setItem("uber_sound", checked ? "true" : "false"); }} /></div></div></Card>)}
+      <Button onClick={onLogout} variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50 h-12 mt-6 flex items-center gap-2 justify-center"><LogOut className="w-5 h-5" />{t("nav.logout", lang)}</Button>
+    </div>
+  );
+}
+
+// ===== ADMIN VIEW =====
+function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid">("dashboard");
+  const [stats, setStats] = useState<any>(null);
+  const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
+  const [cancellations, setCancellations] = useState<any[]>([]);
+  const [unpaidTrips, setUnpaidTrips] = useState<any[]>([]);
+  const { toast } = useToast();
+
+  const loadStats = useCallback(() => { fetch("/api/admin/stats").then((r) => r.json()).then(setStats).catch(() => {}); }, []);
+  const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending").then((r) => r.json()).then((d) => setPendingDrivers(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  const loadCancellations = useCallback(() => { fetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  const loadUnpaid = useCallback(() => { if (user) fetch(`/api/admin/unpaid-trips?adminId=${user.id}`).then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, [user]);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { if (tab === "drivers") loadDrivers(); }, [tab, loadDrivers]);
+  useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
+  useEffect(() => { if (tab === "unpaid") loadUnpaid(); }, [tab, loadUnpaid]);
+
+  const approveDriver = async (driverId: string, action: "approve" | "reject") => {
+    try { await fetch("/api/drivers/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId, adminId: user?.id, action }) }); loadDrivers(); setTimeout(() => toast({ title: action === "approve" ? "✅" : "❌" }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  };
+  const processCancellation = async (tripId: string, action: "approve" | "reject") => {
+    try { await fetch("/api/admin/cancellation-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId, adminId: user?.id, action }) }); loadCancellations(); setTimeout(() => toast({ title: action === "approve" ? "✅" : "❌" }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  };
+
+  if (!user?.isAdmin) return (<div className="max-w-md mx-auto px-4 py-20 text-center"><Shield className="w-16 h-16 mx-auto text-zinc-300 mb-4" /><h2 className="text-2xl font-bold text-black mb-2">{lang === "ar" ? "صلاحية مرفوضة" : "Access Denied"}</h2></div>);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex items-center gap-3 mb-6"><div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div><div><h1 className="text-3xl font-bold text-black">{t("admin.title", lang)}</h1><p className="text-zinc-500">{t("admin.subtitle", lang)}</p></div></div>
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang) }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "cancellations", l: t("admin.cancellations", lang) }, { id: "unpaid", l: lang === "ar" ? "المبالغ غير المدفوعة" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}</Button>))}
+      </div>
+      {tab === "dashboard" && stats && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[{ l: t("admin.revenue", lang), v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600" }, { l: t("admin.totalTrips", lang), v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-xl font-bold`}>{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}</div>)}
+      {tab === "drivers" && (<div className="space-y-3">{pendingDrivers.map((d) => (<Card key={d.id} className="p-4 border-zinc-200"><div className="flex items-center gap-3 mb-3"><Avatar className="w-12 h-12"><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar><div className="flex-1"><div className="font-bold text-black">{d.user?.name}</div><div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate}</div></div><Badge variant="secondary">⏳</Badge></div><div className="flex gap-2"><Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approve", lang)}</Button><Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectBtn", lang)}</Button></div></Card>))}{pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}</div>)}
+      {tab === "cancellations" && (<div className="space-y-3">{cancellations.map((c) => (<Card key={c.id} className="p-4 border-zinc-200"><div className="mb-3"><div className="font-bold text-black">{c.fromAddress} ← {c.toAddress}</div><div className="text-sm text-zinc-500">{c.cancellationReason}</div></div><div className="flex gap-2"><Button onClick={() => processCancellation(c.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approveCancel", lang)}</Button><Button onClick={() => processCancellation(c.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectCancel", lang)}</Button></div></Card>))}{cancellations.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noCancellations", lang)}</Card>}</div>)}
+      {tab === "unpaid" && (<div className="space-y-3">{unpaidTrips.map((trip) => (<Card key={trip.id} className="p-4 border-zinc-200 border-red-200"><div className="mb-2"><div className="font-bold text-black">{trip.user?.name} - {trip.fromAddress} ← {trip.toAddress}</div><div className="text-sm text-red-600">⚠️ {lang === "ar" ? "غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div></div></Card>))}{unpaidTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد مبالغ غير مدفوعة" : "No unpaid amounts"}</Card>}</div>)}
+      {tab === "trips" && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "قائمة الرحلات" : "Trips list"}</Card>}
+    </div>
+  );
+}
+
+// ===== AUTH DIALOG =====
+function AuthDialog({ open, onOpenChange, onSuccess, lang }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: (u: User) => void; lang: Lang }) {
+  const [tab, setTab] = useState<"login" | "register">("login");
+  const [loading, setLoading] = useState(false);
+  const [login, setLogin] = useState({ identifier: "", password: "" });
+  const [reg, setReg] = useState({ name: "", email: "", phone: "", password: "", city: "الرياض", region: "الرياض" });
+  const [showPwd, setShowPwd] = useState(false);
+  const { toast } = useToast();
+
+  const handleLogin = async () => {
+    if (!login.identifier || !login.password) { toast({ title: t("auth.enterCredentials", lang), variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(login) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.isBlocked) { toast({ title: t("auth.blocked", lang), description: data.blockReason, variant: "destructive" }); return; }
+      onSuccess(data); setLogin({ identifier: "", password: "" });
+    } catch (e) { toast({ title: t("auth.loginFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  const handleRegister = async () => {
+    if (!reg.name || !reg.email || !reg.phone || !reg.password) { toast({ title: t("auth.allFieldsRequired", lang), variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reg) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      onSuccess(data); setReg({ name: "", email: "", phone: "", password: "", city: "الرياض", region: "الرياض" });
+    } catch (e) { toast({ title: t("auth.registerFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  const handleGoogleLogin = async () => {
+    const email = prompt(lang === "ar" ? "أدخل بريد Google:" : "Enter Google email:", "user@gmail.com");
+    if (!email) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ googleId: `google_${Date.now()}`, email, name: email.split("@")[0], picture: null }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      onSuccess(data);
+    } catch (e) { toast({ title: t("auth.loginFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle className="text-xl font-bold">{t("auth.welcome", lang)}</DialogTitle><DialogDescription>{t("auth.welcomeDesc", lang)}</DialogDescription></DialogHeader>
+        <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-2 border border-zinc-300 rounded-lg h-12 hover:bg-zinc-50 transition-colors">
+          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <span className="font-medium text-black">{t("auth.loginGoogle", lang)}</span>
+        </button>
+        <div className="flex items-center gap-3"><div className="flex-1 h-px bg-zinc-200"></div><span className="text-xs text-zinc-400">{t("auth.or", lang)}</span><div className="flex-1 h-px bg-zinc-200"></div></div>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
+          <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="login">{t("auth.login", lang)}</TabsTrigger><TabsTrigger value="register">{t("auth.register", lang)}</TabsTrigger></TabsList>
+          <TabsContent value="login" className="space-y-3 mt-4">
+            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder="admin@uber.sa" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
+            <div><Label>{t("auth.password", lang)}</Label><div className="relative"><Input type={showPwd ? "text" : "password"} value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} placeholder="••••••••" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /><button onClick={() => setShowPwd(!showPwd)} className="absolute left-3 top-1/2 -translate-y-1/2">{showPwd ? "🙈" : "👁️"}</button></div></div>
+            <Button onClick={handleLogin} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.loginBtn", lang)}</Button>
+            <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-600 text-center"><p className="font-bold mb-1">{t("auth.demoAccounts", lang)}</p><p>admin@uber.sa / Admin@2026</p><p>saad@example.com / 123456</p></div>
+          </TabsContent>
+          <TabsContent value="register" className="space-y-3 mt-4">
+            <div><Label>{t("auth.name", lang)}</Label><Input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} /></div>
+            <div><Label>{t("auth.email", lang)}</Label><Input value={reg.email} onChange={(e) => setReg({ ...reg, email: e.target.value })} /></div>
+            <div><Label>{t("auth.phone", lang)}</Label><Input value={reg.phone} onChange={(e) => setReg({ ...reg, phone: e.target.value })} placeholder="05xxxxxxxx" /></div>
+            <div><Label>{t("auth.password", lang)}</Label><Input type="password" value={reg.password} onChange={(e) => setReg({ ...reg, password: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-2"><div><Label>{t("profile.region", lang)}</Label><Select value={reg.region} onValueChange={(v) => setReg({ ...reg, region: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{saudiRegions.map((r) => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}</SelectContent></Select></div><div><Label>{t("profile.city", lang)}</Label><Select value={reg.city} onValueChange={(v) => setReg({ ...reg, city: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{saudiRegions.find((r) => r.name === reg.region)?.cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div></div>
+            <Button onClick={handleRegister} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.registerBtn", lang)}</Button>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
