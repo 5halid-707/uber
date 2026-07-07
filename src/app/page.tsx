@@ -605,6 +605,9 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const [riderLoc, setRiderLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [ratingDialog, setRatingDialog] = useState<{ open: boolean; tripId?: string; driverId?: string; driverName?: string }>({ open: false });
+  const [unreadChat, setUnreadChat] = useState(0);
+  const [userCoupons, setUserCoupons] = useState<any[]>([]);
+  const [selectedCoupon, setSelectedCoupon] = useState("");
   const { toast } = useToast();
   const prevStatus = useRef<string>("");
 
@@ -680,7 +683,38 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
     return () => clearInterval(interval);
   }, [step, user]);
 
-  // Poll driver location when trip is accepted
+  // Fetch user's coupons
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/coupons?userId=${user.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setUserCoupons(d); }).catch(() => {});
+  }, [user]);
+
+  // Poll unread chat when tracking
+  useEffect(() => {
+    if (step !== "tracking" || !activeTrip || !user) return;
+    const checkUnread = async () => {
+      try {
+        const res = await fetch(`/api/chat?tripId=${activeTrip.id}&userId=${user.id}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setUnreadChat(data.filter((m: any) => m.receiverId === user.id && !m.isRead).length);
+        }
+      } catch {}
+    };
+    checkUnread();
+    const interval = setInterval(checkUnread, 3000);
+    return () => clearInterval(interval);
+  }, [step, activeTrip, user]);
+
+  // Calculate discount
+  const couponDiscount = (() => {
+    if (!selectedCoupon) return 0;
+    const c = userCoupons.find(c => c.code === selectedCoupon);
+    if (!c) return 0;
+    const basePrice = selectedPrice?.price || 0;
+    return c.type === "percentage" ? Math.floor(basePrice * c.value / 100) : Math.min(c.value, basePrice);
+  })();
+  const finalPriceAfterCoupon = (selectedPrice?.price || 0) - couponDiscount;
   useEffect(() => {
     if (step !== "tracking" || !activeTrip?.driverId) return;
     const getDriverLoc = async () => {
@@ -722,7 +756,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const confirmBooking = async () => {
     if (!user) return;
     try {
-      const res = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, serviceType: selectedService, fromAddress: from, toAddress: to, distance: calc.distance, duration: calc.duration, price: selectedPrice?.price, paymentMethod }) });
+      const res = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, serviceType: selectedService, fromAddress: from, toAddress: to, distance: calc.distance, duration: calc.duration, price: finalPriceAfterCoupon || selectedPrice?.price, paymentMethod }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setActiveTrip(data); setStep("tracking"); prevStatus.current = "pending";
@@ -761,7 +795,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
                 {activeTrip.driverId && (
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => setComplaintOpen(true)} className="border-red-200 text-red-600 hover:bg-red-50"><AlertTriangle className="w-4 h-4 ml-1" />{lang === "ar" ? "شكوى" : "Complaint"}</Button>
-                    <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+                    <Button size="sm" variant="outline" onClick={() => setChatOpen(true)} className="relative"><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}{unreadChat > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{unreadChat}</span>}</Button>
                   </div>
                 )}
               </div>
@@ -831,8 +865,35 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
               <h3 className="font-bold text-black mb-2">{t("ride.chooseService", lang)}</h3>
               {prices.map((opt) => (<button key={opt.id} onClick={() => setSelectedService(opt.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${selectedService === opt.id ? "border-black bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"}`}><span className="text-3xl">{opt.emoji}</span><div className="flex-1 text-right"><div className="font-bold text-black">{lang === "ar" ? opt.name : t(`services.${opt.id}`, lang)}</div><div className="text-xs text-zinc-500">{opt.desc}</div></div><div className="text-left"><div className="font-bold text-black">{opt.price} ر.س</div><div className="text-xs text-zinc-500">{opt.seats} {t("ride.seats", lang)}</div></div></button>))}
             </div>
+            {/* Coupon selector */}
+            {userCoupons.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-bold text-black mb-2">🎫 {lang === "ar" ? "كوبون الخصم" : "Coupon"}</h3>
+                <Select value={selectedCoupon} onValueChange={setSelectedCoupon}>
+                  <SelectTrigger><SelectValue placeholder={lang === "ar" ? "اختر كوبون (اختياري)" : "Select coupon (optional)"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{lang === "ar" ? "بدون كوبون" : "No coupon"}</SelectItem>
+                    {userCoupons.map(c => <SelectItem key={c.id} value={c.code}>{c.code} - {c.type === "percentage" ? `${c.value}%` : `${c.value} ر.س`} {lang === "ar" ? "خصم" : "off"}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {couponDiscount > 0 && (
+                  <div className="mt-2 bg-green-50 border border-green-200 p-2 rounded-lg flex justify-between text-sm">
+                    <span className="text-green-600">✅ {lang === "ar" ? "خصم" : "Discount"}</span>
+                    <span className="font-bold text-green-600">- {couponDiscount} ر.س</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Price summary with coupon */}
+            {from && to && selectedCoupon && couponDiscount > 0 && (
+              <div className="bg-zinc-50 rounded-xl p-3 mb-4 space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-zinc-500">{lang === "ar" ? "السعر الأصلي" : "Original"}</span><span className="text-zinc-600 line-through">{selectedPrice?.price} ر.س</span></div>
+                <div className="flex justify-between"><span className="text-green-600">{lang === "ar" ? "بعد الخصم" : "After discount"}</span><span className="font-bold text-green-600">{finalPriceAfterCoupon} ر.س</span></div>
+              </div>
+            )}
+
             <div className="mb-4">
-              <h3 className="font-bold text-black mb-2">{t("ride.paymentMethod", lang)}</h3>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">💵 {t("ride.cash", lang)}</SelectItem><SelectItem value="wallet">💰 {t("ride.wallet", lang)} ({user?.walletBalance || 0})</SelectItem><SelectItem value="card">💳 {t("ride.card", lang)}</SelectItem><SelectItem value="paypal">💳 PayPal</SelectItem><SelectItem value="stc_pay">📱 STC Pay</SelectItem></SelectContent></Select>
             </div>
             {step === "search" ? (<Button onClick={handleBook} className="w-full bg-black hover:bg-zinc-800 h-12 text-lg" disabled={!from || !to}>{user ? t("ride.confirm", lang) : t("ride.loginFirst", lang)}</Button>) : (<div className="flex gap-2"><Button variant="outline" onClick={() => setStep("search")} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={confirmBooking} className="flex-1 bg-black hover:bg-zinc-800 h-12">{t("ride.confirmBooking", lang)}</Button></div>)}
@@ -1202,6 +1263,9 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
     } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
   };
 
+  const [driverRatingDialog, setDriverRatingDialog] = useState<{ open: boolean; tripId?: string; riderId?: string; riderName?: string }>({ open: false });
+  const [unreadChat, setUnreadChat] = useState(0);
+
   const completeWithPayment = async () => {
     if (!activeTrip || !user) return;
     const received = parseFloat(cashReceived) || 0;
@@ -1214,8 +1278,28 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
       if (!res.ok) throw new Error(data.error);
       setTimeout(() => toast({ title: data.message }), 0);
       setPaymentDialog({ open: false }); setCashReceived("");
+      // Show rating dialog for driver to rate rider
+      setDriverRatingDialog({ open: true, tripId: activeTrip.id, riderId: activeTrip.userId, riderName: activeTrip.user?.name || (lang === "ar" ? "الراكب" : "Rider") });
     } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
   };
+
+  // Poll unread chat messages
+  useEffect(() => {
+    if (!user || !activeTrip) return;
+    const checkUnread = async () => {
+      try {
+        const res = await fetch(`/api/chat?tripId=${activeTrip.id}&userId=${user.id}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const unread = data.filter((m: any) => m.receiverId === user.id && !m.isRead).length;
+          setUnreadChat(unread);
+        }
+      } catch {}
+    };
+    checkUnread();
+    const interval = setInterval(checkUnread, 3000);
+    return () => clearInterval(interval);
+  }, [user, activeTrip]);
 
   if (loading) return <div className="text-center py-20">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>;
 
@@ -1242,7 +1326,7 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-black text-lg">{t("driver.activeTrip", lang)}</h3>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-1" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+              <Button size="sm" variant="outline" onClick={() => setChatOpen(true)} className="relative"><MessageCircle className="w-4 h-4 ml-1" />{lang === "ar" ? "محادثة" : "Chat"}{unreadChat > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{unreadChat}</span>}</Button>
               <Button size="sm" variant="outline" onClick={() => setComplaintOpen(true)} className="border-red-200 text-red-600 hover:bg-red-50"><AlertTriangle className="w-4 h-4 ml-1" />{lang === "ar" ? "شكوى" : "Complaint"}</Button>
             </div>
           </div>
@@ -1288,6 +1372,10 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
       {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} otherAvatar={null} />}
 
       {complaintOpen && user && activeTrip && <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} fromUserId={user.id} againstUserId={activeTrip.userId} againstName={activeTrip.user?.name || "Rider"} tripId={activeTrip.id} lang={lang} />}
+
+      {driverRatingDialog.open && user && driverRatingDialog.riderId && (
+        <RatingDialog open={driverRatingDialog.open} onOpenChange={(o) => setDriverRatingDialog({ ...driverRatingDialog, open: o })} tripId={driverRatingDialog.tripId!} fromUserId={user.id} toUserId={driverRatingDialog.riderId!} targetName={driverRatingDialog.riderName || "Rider"} ratedBy="driver" lang={lang} />
+      )}
 
       <Dialog open={paymentDialog.open} onOpenChange={(o) => setPaymentDialog({ ...paymentDialog, open: o })}>
         <DialogContent>
