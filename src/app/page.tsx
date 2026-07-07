@@ -1285,7 +1285,7 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
 
       {!online && !activeTrip && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">😴</div><h3 className="text-xl font-bold text-black mb-2">{t("driver.offlineMsg", lang)}</h3><p className="text-zinc-500 mb-6">{t("driver.offlineDescMsg", lang)}</p><Button onClick={() => toggleOnline(true)} className="bg-black hover:bg-zinc-800 h-12 px-8">{t("driver.startWork", lang)}</Button></Card>)}
 
-      {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} otherAvatar={null || null} />}
+      {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} otherAvatar={null} />}
 
       {complaintOpen && user && activeTrip && <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} fromUserId={user.id} againstUserId={activeTrip.userId} againstName={activeTrip.user?.name || "Rider"} tripId={activeTrip.id} lang={lang} />}
 
