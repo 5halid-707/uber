@@ -81,15 +81,36 @@ export default function Page() {
     );
   }
 
-  const navItems: { id: View; label: string }[] = [
-    { id: "home", label: t("nav.home", lang) },
-    { id: "ride", label: t("nav.ride", lang) },
-    { id: "trips", label: t("nav.trips", lang) },
-    { id: "driver", label: t("nav.driver", lang) },
-    { id: "bank", label: t("nav.bank", lang) },
-    ...(user?.isAdmin ? [{ id: "admin" as View, label: t("nav.admin", lang) }] : []),
-    { id: "profile", label: t("nav.profile", lang) },
-  ];
+  // Navigation items based on user type
+  let navItems: { id: View; label: string }[] = [{ id: "home", label: t("nav.home", lang) }];
+  if (user?.isAdmin) {
+    // Admin sees everything
+    navItems = [
+      { id: "home", label: t("nav.home", lang) },
+      { id: "admin", label: t("nav.admin", lang) },
+      { id: "trips", label: t("nav.trips", lang) },
+      { id: "bank", label: t("nav.bank", lang) },
+      { id: "profile", label: t("nav.profile", lang) },
+    ];
+  } else if (user?.isDriver) {
+    // Driver: NO "book ride" - only their trips and work
+    navItems = [
+      { id: "home", label: t("nav.home", lang) },
+      { id: "driver", label: t("nav.driver", lang) },
+      { id: "trips", label: t("nav.trips", lang) },
+      { id: "bank", label: t("nav.bank", lang) },
+      { id: "profile", label: t("nav.profile", lang) },
+    ];
+  } else {
+    // Rider: NO "driver" page - only booking
+    navItems = [
+      { id: "home", label: t("nav.home", lang) },
+      { id: "ride", label: t("nav.ride", lang) },
+      { id: "trips", label: t("nav.trips", lang) },
+      { id: "bank", label: t("nav.bank", lang) },
+      { id: "profile", label: t("nav.profile", lang) },
+    ];
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -107,14 +128,14 @@ export default function Page() {
             </nav>
             <div className="hidden lg:flex items-center gap-3">
               <LanguageSwitcher lang={lang} setLang={setLang} />
-              {user ? (
+              {user && user.name ? (
                 <>
                   <button onClick={() => navigate("profile")} className="flex items-center gap-2 hover:bg-zinc-800 rounded-lg p-1 pr-2">
-                    <Avatar className="w-8 h-8"><AvatarFallback className="bg-zinc-700 text-sm">{user.name.charAt(0)}</AvatarFallback></Avatar>
-                    <span className="text-sm">{user.name.split(" ")[0]}</span>
+                    <Avatar className="w-8 h-8"><AvatarFallback className="bg-zinc-700 text-sm">{(user.name || "?").charAt(0)}</AvatarFallback></Avatar>
+                    <span className="text-sm">{(user.name || "").split(" ")[0]}</span>
                   </button>
-                  <Button variant="outline" size="sm" onClick={handleLogout} className="border-zinc-700 text-white hover:bg-zinc-800" aria-label="Logout">
-                    <LogOut className="w-4 h-4" />
+                  <Button variant="outline" size="sm" onClick={handleLogout} className="border-red-600 text-red-400 hover:bg-red-900/30 font-bold" aria-label="Logout">
+                    <LogOut className="w-4 h-4 ml-1" /><span className="hidden sm:inline">{t("nav.logout", lang)}</span>
                   </Button>
                 </>
               ) : (
@@ -132,7 +153,7 @@ export default function Page() {
                 <button key={item.id} onClick={() => navigate(item.id)} className={`w-full text-right px-4 py-3 rounded-lg text-sm font-medium ${view === item.id ? "bg-white text-black" : "text-zinc-300 hover:bg-zinc-800"}`}>{item.label}</button>
               ))}
               {user ? (
-                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-sm text-red-400 hover:bg-zinc-800">
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-bold text-red-400 hover:bg-red-900/30 border border-red-600/30">
                   <LogOut className="w-5 h-5" />{t("nav.logout", lang)}
                 </button>
               ) : (
@@ -174,7 +195,12 @@ export default function Page() {
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black text-white border-t border-zinc-800 z-40">
         <div className="grid grid-cols-5 h-16">
-          {([{ id: "home", l: t("nav.home", lang), i: "🏠" }, { id: "ride", l: t("nav.ride", lang), i: "🚗" }, { id: "trips", l: t("nav.trips", lang), i: "📋" }, { id: "bank", l: t("nav.bank", lang), i: "💳" }, { id: "profile", l: t("nav.profile", lang), i: "👤" }] as { id: View; l: string; i: string }[]).map((item) => (
+          {(user?.isDriver
+            ? [{ id: "home" as View, l: t("nav.home", lang), i: "🏠" }, { id: "driver" as View, l: t("nav.driver", lang), i: "🚗" }, { id: "trips" as View, l: t("nav.trips", lang), i: "📋" }, { id: "bank" as View, l: t("nav.bank", lang), i: "💳" }, { id: "profile" as View, l: t("nav.profile", lang), i: "👤" }]
+            : user?.isAdmin
+            ? [{ id: "home" as View, l: t("nav.home", lang), i: "🏠" }, { id: "admin" as View, l: t("nav.admin", lang), i: "🛡️" }, { id: "trips" as View, l: t("nav.trips", lang), i: "📋" }, { id: "bank" as View, l: t("nav.bank", lang), i: "💳" }, { id: "profile" as View, l: t("nav.profile", lang), i: "👤" }]
+            : [{ id: "home" as View, l: t("nav.home", lang), i: "🏠" }, { id: "ride" as View, l: t("nav.ride", lang), i: "🚗" }, { id: "trips" as View, l: t("nav.trips", lang), i: "📋" }, { id: "bank" as View, l: t("nav.bank", lang), i: "💳" }, { id: "profile" as View, l: t("nav.profile", lang), i: "👤" }]
+          ).map((item) => (
             <button key={item.id} onClick={() => navigate(item.id)} className={`flex flex-col items-center justify-center gap-1 ${view === item.id ? "text-white" : "text-zinc-500"}`}>
               <span className="text-xl">{item.i}</span><span className="text-[10px]">{item.l}</span>
             </button>
@@ -202,8 +228,9 @@ function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user:
               <h1 className="text-4xl md:text-6xl font-bold leading-tight">{t("home.heroTitle", lang)}<br /><span className="text-zinc-400">{t("home.heroSubtitle", lang)}</span></h1>
               <p className="text-lg text-zinc-300 max-w-md">{t("home.heroDesc", lang)}</p>
               <div className="flex flex-wrap gap-3">
-                <Button size="lg" onClick={() => navigate("ride")} className="bg-white text-black hover:bg-zinc-200 text-lg px-8 h-14">{t("home.bookNow", lang)} ←</Button>
-                <Button size="lg" variant="outline" onClick={() => navigate("driver-register")} className="border-zinc-700 text-white hover:bg-zinc-800 h-14 text-lg">{t("home.beDriver", lang)}</Button>
+                {/* "Become a Driver" is MORE prominent - green and bigger */}
+                <Button size="lg" onClick={() => navigate("driver-register")} className="bg-green-600 hover:bg-green-700 text-white text-lg px-8 h-14 font-bold animate-pulse">🚗 {t("home.beDriver", lang)}</Button>
+                {!user?.isDriver && <Button size="lg" onClick={() => navigate("ride")} className="bg-white text-black hover:bg-zinc-200 text-lg px-8 h-14">{t("home.bookNow", lang)} ←</Button>}
               </div>
               {!user && <p className="text-sm text-zinc-400">{t("home.welcomeBonus", lang)}</p>}
             </div>
@@ -916,10 +943,10 @@ function AuthDialog({ open, onOpenChange, onSuccess, lang }: { open: boolean; on
         <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
           <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="login">{t("auth.login", lang)}</TabsTrigger><TabsTrigger value="register">{t("auth.register", lang)}</TabsTrigger></TabsList>
           <TabsContent value="login" className="space-y-3 mt-4">
-            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder="admin@uber.sa" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
+            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder="grouthhacker@gmail.com" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
             <div><Label>{t("auth.password", lang)}</Label><div className="relative"><Input type={showPwd ? "text" : "password"} value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} placeholder="••••••••" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /><button onClick={() => setShowPwd(!showPwd)} className="absolute left-3 top-1/2 -translate-y-1/2">{showPwd ? "🙈" : "👁️"}</button></div></div>
             <Button onClick={handleLogin} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.loginBtn", lang)}</Button>
-            <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-600 text-center"><p className="font-bold mb-1">{t("auth.demoAccounts", lang)}</p><p>admin@uber.sa / Admin@2026</p><p>saad@example.com / 123456</p></div>
+            <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-600 text-center"><p className="font-bold mb-1">{t("auth.demoAccounts", lang)}</p><p>grouthhacker@gmail.com / Admin@2026</p><p>saad@example.com / 123456</p><p>ahmed@driver.com / 123456</p></div>
           </TabsContent>
           <TabsContent value="register" className="space-y-3 mt-4">
             <div><Label>{t("auth.name", lang)}</Label><Input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} /></div>
