@@ -45,7 +45,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "السائق غير موجود" }, { status: 404 });
     }
 
-    return NextResponse.json({ driver });
+    return NextResponse.json({
+      lat: driver.currentLat,
+      lng: driver.currentLng,
+      heading: driver.heading || null,
+      speed: driver.speed || null,
+      driverId: driver.userId,
+      carModel: driver.carModel,
+      carPlate: driver.carPlate,
+      carColor: driver.carColor,
+      rating: driver.rating,
+    });
   } catch (error) {
     console.error("GET /api/drivers/location error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء جلب موقع السائق" }, { status: 500 });

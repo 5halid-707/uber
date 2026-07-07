@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         .catch(() => {});
     }
 
-    return NextResponse.json({ messages });
+    return NextResponse.json(messages);
   } catch (error) {
     console.error("GET /api/chat error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء جلب الرسائل" }, { status: 500 });
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       })
       .catch(() => {});
 
-    return NextResponse.json({ message: msg }, { status: 201 });
+    return NextResponse.json(msg, { status: 201 });
   } catch (error) {
     console.error("POST /api/chat error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء إرسال الرسالة" }, { status: 500 });

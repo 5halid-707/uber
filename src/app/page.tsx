@@ -550,6 +550,45 @@ function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user:
   );
 }
 
+// ===== LIVE MAP COMPONENT =====
+function LiveMap({ riderLoc, driverLoc, from, to, status }: {
+  riderLoc?: { lat: number; lng: number } | null;
+  driverLoc?: { lat: number; lng: number } | null;
+  from?: string;
+  to?: string;
+  status?: string;
+}) {
+  // Build Google Maps embed URL with markers
+  let mapUrl = "";
+  if (driverLoc && riderLoc) {
+    // Show both markers with route
+    const midLat = ((driverLoc.lat + riderLoc.lat) / 2).toFixed(6);
+    const midLng = ((driverLoc.lng + riderLoc.lng) / 2).toFixed(6);
+    mapUrl = `https://www.google.com/maps?q=${midLat},${midLng}&z=14&output=embed`;
+  } else if (riderLoc) {
+    mapUrl = `https://www.google.com/maps?q=${riderLoc.lat},${riderLoc.lng}&z=15&output=embed`;
+  } else if (driverLoc) {
+    mapUrl = `https://www.google.com/maps?q=${driverLoc.lat},${driverLoc.lng}&z=15&output=embed`;
+  } else if (from && to) {
+    mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(from + " to " + to + " Saudi Arabia")}&output=embed`;
+  } else if (from) {
+    mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(from + " Saudi Arabia")}&output=embed`;
+  } else {
+    mapUrl = `https://www.google.com/maps?q=Riyadh&output=embed`;
+  }
+
+  return (
+    <div className="relative w-full h-full">
+      <iframe src={mapUrl} className="w-full h-full" style={{ border: 0 }} loading="lazy" />
+      {/* Location badges overlay */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        {riderLoc && <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">🔵 {status === "ongoing" ? "الوجهة" : "الراكب"}</div>}
+        {driverLoc && <div className="bg-red-600 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">🔴 السائق 🚗</div>}
+      </div>
+    </div>
+  );
+}
+
 // ===== RIDE VIEW =====
 function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const [from, setFrom] = useState("");
@@ -562,6 +601,8 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const [lateFeeData, setLateFeeData] = useState({ waitingMinutes: 0, lateFee: 0, freeMinutesLeft: 3 });
   const [elapsed, setElapsed] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
+  const [riderLoc, setRiderLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
   const prevStatus = useRef<string>("");
 
@@ -600,6 +641,47 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
   }, [step, activeTrip, user, toast, lang]);
+
+  // Send rider GPS location when tracking
+  useEffect(() => {
+    if (step !== "tracking" || !user) return;
+    const sendLoc = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setRiderLoc(loc);
+          fetch("/api/users/location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user.id, lat: loc.lat, lng: loc.lng }),
+          }).catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+    sendLoc();
+    const interval = setInterval(sendLoc, 10000);
+    return () => clearInterval(interval);
+  }, [step, user]);
+
+  // Poll driver location when trip is accepted
+  useEffect(() => {
+    if (step !== "tracking" || !activeTrip?.driverId) return;
+    const getDriverLoc = async () => {
+      try {
+        const res = await fetch(`/api/drivers/location?driverUserId=${activeTrip.driverId}`);
+        const data = await res.json();
+        if (data.lat && data.lng) {
+          setDriverLoc({ lat: data.lat, lng: data.lng });
+        }
+      } catch {}
+    };
+    getDriverLoc();
+    const interval = setInterval(getDriverLoc, 5000);
+    return () => clearInterval(interval);
+  }, [step, activeTrip?.driverId]);
 
   useEffect(() => {
     if (activeTrip?.status !== "driver_arrived" || !activeTrip.id) return;
@@ -654,7 +736,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
           <div className="lg:col-span-3">
             <Card className="overflow-hidden border-zinc-200">
               <div className="h-96">
-                <iframe src={`https://www.google.com/maps?q=${encodeURIComponent(activeTrip.fromAddress + " to " + activeTrip.toAddress + " Saudi Arabia")}&output=embed`} className="w-full h-full" style={{ border: 0 }} loading="lazy" />
+                <LiveMap riderLoc={riderLoc} driverLoc={driverLoc} from={activeTrip.fromAddress} to={activeTrip.toAddress} status={activeTrip.status} />
               </div>
             </Card>
           </div>
@@ -842,15 +924,26 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState<{ open: boolean; tripId?: string; finalPrice?: number }>({ open: false });
   const [cashReceived, setCashReceived] = useState("");
+  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [riderLoc, setRiderLoc] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
   const prevTripsCount = useRef(0);
 
+  // Fetch online status from server and poll for trips
   useEffect(() => {
     if (!user) return;
     const poll = async () => {
       try {
         const res = await fetch(`/api/drivers/active-trip?driverId=${user.id}`);
-        if (res.ok) { const data = await res.json(); setActiveTrip(data.activeTrip); setAvailableTrips(data.availableTrips || []); if (data.availableTrips.length > prevTripsCount.current) safePlaySound(playNewRequestSound); prevTripsCount.current = data.availableTrips.length; }
+        if (res.ok) {
+          const data = await res.json();
+          // Sync online status from server (persists across page navigation)
+          setOnline(data.isOnline ?? false);
+          setActiveTrip(data.activeTrip);
+          setAvailableTrips(data.availableTrips || []);
+          if (data.availableTrips.length > prevTripsCount.current) safePlaySound(playNewRequestSound);
+          prevTripsCount.current = data.availableTrips.length;
+        }
       } catch {}
       setLoading(false);
     };
@@ -858,6 +951,63 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // Toggle online status - persists to server
+  const toggleOnline = async (newOnline: boolean) => {
+    setOnline(newOnline); // Optimistic update
+    if (!user) return;
+    try {
+      await fetch("/api/drivers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driverId: user.id, isOnline: newOnline }),
+      });
+    } catch {
+      // Revert on error
+      setOnline(!newOnline);
+    }
+  };
+
+  // Send driver GPS location every 5 seconds when online or has active trip
+  useEffect(() => {
+    if (!user || (!online && !activeTrip)) return;
+    const sendLocation = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setDriverLoc(loc);
+          fetch("/api/drivers/location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ driverUserId: user.id, lat: loc.lat, lng: loc.lng, heading: pos.coords.heading, speed: pos.coords.speed }),
+          }).catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+    sendLocation();
+    const interval = setInterval(sendLocation, 5000);
+    return () => clearInterval(interval);
+  }, [user, online, activeTrip]);
+
+  // Get rider's location when has active trip
+  useEffect(() => {
+    if (!activeTrip?.userId) return;
+    const getRiderLoc = async () => {
+      try {
+        const res = await fetch(`/api/users/location?userId=${activeTrip.userId}`);
+        const data = await res.json();
+        if (data.currentLat && data.currentLng) {
+          setRiderLoc({ lat: data.currentLat, lng: data.currentLng });
+        }
+      } catch {}
+    };
+    getRiderLoc();
+    const interval = setInterval(getRiderLoc, 5000);
+    return () => clearInterval(interval);
+  }, [activeTrip?.userId]);
 
   const acceptTrip = async (tripId: string) => {
     if (!user) return;
@@ -911,9 +1061,18 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
       <Card className="p-6 mb-6 border-zinc-200 bg-black text-white">
         <div className="flex items-center justify-between">
           <div><h2 className="text-2xl font-bold mb-1">{t("driver.status", lang)}</h2><p className="text-zinc-400">{online ? t("driver.onlineDesc", lang) : t("driver.offlineDesc", lang)}</p></div>
-          <div className="flex items-center gap-3"><span className={online ? "text-green-400" : "text-zinc-500"}>{online ? t("driver.online", lang) : t("driver.offline", lang)}</span><Switch checked={online} onCheckedChange={setOnline} /></div>
+          <div className="flex items-center gap-3"><span className={online ? "text-green-400" : "text-zinc-500"}>{online ? t("driver.online", lang) : t("driver.offline", lang)}</span><Switch checked={online} onCheckedChange={toggleOnline} /></div>
         </div>
       </Card>
+
+      {/* Live Map showing driver + rider locations */}
+      {activeTrip && (
+        <Card className="overflow-hidden mb-6 border-zinc-200">
+          <div className="h-64">
+            <LiveMap riderLoc={riderLoc} driverLoc={driverLoc} from={activeTrip.fromAddress} to={activeTrip.toAddress} status={activeTrip.status} />
+          </div>
+        </Card>
+      )}
 
       {activeTrip && (
         <Card className="p-6 mb-6 border-2 border-blue-200">
@@ -925,6 +1084,9 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
             <div className="flex items-center gap-2 mb-2"><span className="text-green-500">●</span><span className="text-black">{activeTrip.fromAddress}</span></div>
             <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-black">{activeTrip.toAddress}</span></div>
             <div className="mt-2 flex justify-between text-sm"><span className="text-zinc-500">{t("ride.cost", lang)}</span><span className="font-bold text-black">{activeTrip.finalPrice || activeTrip.price} ر.س</span></div>
+            {activeTrip.user && (
+              <div className="mt-2 pt-2 border-t border-zinc-200 text-sm text-zinc-500">{lang === "ar" ? "الراكب" : "Rider"}: {activeTrip.user.name} - {activeTrip.user.phone}</div>
+            )}
           </div>
           <div className="flex gap-2 flex-wrap">
             {activeTrip.status === "accepted" && <Button onClick={driverArrived} className="bg-blue-600 hover:bg-blue-700 flex-1">🚗 {t("driver.arriveBtn", lang)}</Button>}
@@ -955,7 +1117,7 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
         </div>
       )}
 
-      {!online && !activeTrip && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">😴</div><h3 className="text-xl font-bold text-black mb-2">{t("driver.offlineMsg", lang)}</h3><p className="text-zinc-500 mb-6">{t("driver.offlineDescMsg", lang)}</p><Button onClick={() => setOnline(true)} className="bg-black hover:bg-zinc-800 h-12 px-8">{t("driver.startWork", lang)}</Button></Card>)}
+      {!online && !activeTrip && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">😴</div><h3 className="text-xl font-bold text-black mb-2">{t("driver.offlineMsg", lang)}</h3><p className="text-zinc-500 mb-6">{t("driver.offlineDescMsg", lang)}</p><Button onClick={() => toggleOnline(true)} className="bg-black hover:bg-zinc-800 h-12 px-8">{t("driver.startWork", lang)}</Button></Card>)}
 
       {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} />}
 
