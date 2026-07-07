@@ -1,70 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
-import { logActivity } from "@/lib/activity";
 
-export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) {
-    return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const adminId = searchParams.get("adminId");
+    if (adminId) {
+      const admin = await db.user.findUnique({ where: { id: adminId } });
+      if (!admin?.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+    }
+    const coupons = await db.coupon.findMany({ orderBy: { createdAt: "desc" } });
+    return NextResponse.json(coupons);
+  } catch (error) {
+    return NextResponse.json({ error: "خطأ" }, { status: 500 });
   }
-
-  const coupons = await db.coupon.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { redemptions: true } },
-    },
-  });
-
-  return NextResponse.json({ coupons });
 }
 
 export async function POST(request: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) {
-    return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
+  try {
+    const body = await request.json();
+    const { code, type, value, minTripPrice, maxUses, expiresAt, createdById, appliedToId } = body;
+
+    if (!code || !value) return NextResponse.json({ error: "بيانات ناقصة" }, { status: 400 });
+
+    const existing = await db.coupon.findUnique({ where: { code: code.toUpperCase() } });
+    if (existing) return NextResponse.json({ error: "الكود موجود مسبقاً" }, { status: 400 });
+
+    const coupon = await db.coupon.create({
+      data: {
+        code: code.toUpperCase(),
+        type: type || "fixed",
+        value: parseFloat(value),
+        minTripPrice: parseFloat(minTripPrice) || 0,
+        maxUses: parseInt(maxUses) || 1,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        createdById: createdById || null,
+        appliedToId: appliedToId || null,
+      },
+    });
+
+    // If appliedToId is set, notify the user
+    if (appliedToId) {
+      await db.notification.create({
+        data: {
+          userId: appliedToId,
+          title: "🎉 كوبون خصم جديد!",
+          message: `تم إضافة كوبون "${coupon.code}" لحسابك - ${coupon.type === "percentage" ? `${coupon.value}%` : `${coupon.value} ر.س`} خصم`,
+          type: "promo",
+        },
+      });
+    }
+
+    return NextResponse.json({ success: true, coupon });
+  } catch (error) {
+    console.error("Create coupon error:", error);
+    return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
-
-  const body = await request.json();
-  const { code, description, type, value, maxRedemptions, minAmount, maxDiscount, validUntil, appliesTo } = body;
-
-  if (!code?.trim() || !type || !value) {
-    return NextResponse.json(
-      { error: "الكود والنوع والقيمة مطلوبة" },
-      { status: 400 }
-    );
-  }
-
-  // Check uniqueness
-  const existing = await db.coupon.findFirst({ where: { code: code.trim().toUpperCase() } });
-  if (existing) {
-    return NextResponse.json(
-      { error: "كود الكوبون موجود مسبقاً" },
-      { status: 409 }
-    );
-  }
-
-  const coupon = await db.coupon.create({
-    data: {
-      code: code.trim().toUpperCase(),
-      description: description?.trim() || null,
-      type, // percentage or fixed
-      value: parseFloat(value),
-      maxRedemptions: maxRedemptions ? parseInt(maxRedemptions) : null,
-      minAmount: parseFloat(minAmount) || 0,
-      maxDiscount: maxDiscount ? parseFloat(maxDiscount) : null,
-      validUntil: validUntil ? new Date(validUntil) : null,
-      appliesTo: appliesTo || "all",
-      isActive: true,
-    },
-  });
-
-  await logActivity({
-    userId: admin.id,
-    action: "coupon_create",
-    description: `إنشاء كوبون ${coupon.code} (${coupon.type === "percentage" ? coupon.value + "%" : coupon.value + " ريال"})`,
-    metadata: { couponId: coupon.id, code: coupon.code },
-  });
-
-  return NextResponse.json({ coupon });
 }

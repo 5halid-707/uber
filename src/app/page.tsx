@@ -604,6 +604,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const [complaintOpen, setComplaintOpen] = useState(false);
   const [riderLoc, setRiderLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [ratingDialog, setRatingDialog] = useState<{ open: boolean; tripId?: string; driverId?: string; driverName?: string }>({ open: false });
   const { toast } = useToast();
   const prevStatus = useRef<string>("");
 
@@ -645,6 +646,8 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
               title: lang === "ar" ? "اكتملت الرحلة! 🎉" : "Trip completed! 🎉",
               description: `${lang === "ar" ? "السعر النهائي" : "Final price"}: ${finalAmount} ر.س${lateFeeData?.lateFee ? ` (${lang === "ar" ? "شامل رسوم انتظار" : "incl. late fee"} ${lateFeeData.lateFee})` : ""}`,
             }), 0);
+            // Open rating dialog
+            setRatingDialog({ open: true, tripId: trip.id, driverId: trip.driverId, driverName: trip.driver?.name || trip.driver?.user?.name || (lang === "ar" ? "السائق" : "Driver") });
           }
         }
       } catch {}
@@ -779,6 +782,19 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
         </div>
         {chatOpen && activeTrip.driverId && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.driverId} otherName={activeTrip.driver?.name || "Driver"} lang={lang} otherAvatar={activeTrip.driver?.user?.avatar || null} />}
         {complaintOpen && user && activeTrip.driverId && <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} fromUserId={user.id} againstUserId={activeTrip.driverId} againstName={activeTrip.driver?.user?.name || activeTrip.driver?.name || (lang === "ar" ? "السائق" : "Driver")} tripId={activeTrip.id} lang={lang} />}
+
+      {ratingDialog.open && user && ratingDialog.driverId && (
+        <RatingDialog
+          open={ratingDialog.open}
+          onOpenChange={(o) => setRatingDialog({ ...ratingDialog, open: o })}
+          tripId={ratingDialog.tripId!}
+          fromUserId={user.id}
+          toUserId={ratingDialog.driverId!}
+          targetName={ratingDialog.driverName || "Driver"}
+          ratedBy="rider"
+          lang={lang}
+        />
+      )}
       </div>
     );
   }
@@ -1407,6 +1423,9 @@ function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; 
       {tab === "info" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "المعلومات الشخصية" : "Personal Info"}</h3><div className="space-y-3">{[{ l: t("profile.fullName", lang), v: user.name }, { l: t("profile.email", lang), v: user.email }, { l: t("profile.phone", lang), v: user.phone }, { l: t("profile.city", lang), v: user.city || "-" }, { l: t("profile.region", lang), v: user.region || "-" }].map((item, i) => (<div key={i} className="flex justify-between py-3 border-b border-zinc-100"><span className="text-zinc-500">{item.l}</span><span className="font-medium text-black">{item.v}</span></div>))}</div></Card>)}
       {tab === "wallet" && (<Card className="p-6 border-zinc-200 bg-gradient-to-br from-black to-zinc-800 text-white"><p className="text-zinc-400 text-sm">{t("profile.walletBalance", lang)}</p><p className="text-4xl font-bold mt-1">{user.walletBalance} ر.س</p><Button className="mt-4 bg-white text-black hover:bg-zinc-200">{t("profile.topup", lang)}</Button></Card>)}
       {tab === "settings" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{t("profile.notifications", lang)}</h3><div className="space-y-3"><div className="flex items-center justify-between py-3 border-b border-zinc-100"><div><div className="font-medium text-black">🔊 {lang === "ar" ? "الأصوات التنبيهية" : "Alert Sounds"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "أصوات للطلبات والإشعارات" : "Sounds for requests and notifications"}</div></div><Switch checked={soundEnabled} onCheckedChange={(checked) => { setSoundEnabled(checked); localStorage.setItem("uber_sound", checked ? "true" : "false"); }} /></div></div></Card>)}
+
+      {/* Coupons section always visible */}
+      <div className="mt-6"><CouponsSection userId={user.id} lang={lang} /></div>
       <Button onClick={() => setComplaintOpen(true)} variant="outline" className="w-full border-orange-200 text-orange-600 hover:bg-orange-50 h-12 mt-4 flex items-center gap-2 justify-center"><AlertTriangle className="w-5 h-5" />{lang === "ar" ? "تقديم شكوى" : "File a complaint"}</Button>
 
       <Button onClick={onLogout} variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50 h-12 mt-3 flex items-center gap-2 justify-center"><LogOut className="w-5 h-5" />{t("nav.logout", lang)}</Button>
@@ -1418,16 +1437,20 @@ function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; 
 
 // ===== ADMIN VIEW =====
 function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
-  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid" | "complaints">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid" | "complaints" | "coupons">("dashboard");
   const [complaints, setComplaints] = useState<any[]>([]);
   const [allTrips, setAllTrips] = useState<any[]>([]);
   const [tripFilter, setTripFilter] = useState("all");
+  const [allCoupons, setAllCoupons] = useState<any[]>([]);
+  const [newCoupon, setNewCoupon] = useState({ code: "", type: "fixed", value: "", maxUses: "1" });
 
   const loadComplaints = useCallback(() => { if (user) fetch(`/api/complaints?adminId=${user.id}`).then(r => r.json()).then(d => setComplaints(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
   const loadAllTrips = useCallback(() => { if (user) fetch(`/api/admin/trips?adminId=${user.id}&limit=100`).then(r => r.json()).then(d => setAllTrips(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
+  const loadCoupons = useCallback(() => { if (user) fetch(`/api/admin/coupons?adminId=${user.id}`).then(r => r.json()).then(d => setAllCoupons(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
 
   useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
   useEffect(() => { if (tab === "trips") loadAllTrips(); }, [tab, loadAllTrips]);
+  useEffect(() => { if (tab === "coupons") loadCoupons(); }, [tab, loadCoupons]);
   const [stats, setStats] = useState<any>(null);
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [cancellations, setCancellations] = useState<any[]>([]);
@@ -1456,7 +1479,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center gap-3 mb-6"><div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div><div><h1 className="text-3xl font-bold text-black">{t("admin.title", lang)}</h1><p className="text-zinc-500">{t("admin.subtitle", lang)}</p></div></div>
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang) }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints" }, { id: "cancellations", l: t("admin.cancellations", lang) }, { id: "unpaid", l: lang === "ar" ? "المبالغ غير المدفوعة" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}{tb.id === "complaints" && complaints.length > 0 && <span className="mr-1 bg-red-600 text-white text-xs px-1.5 rounded-full">{complaints.length}</span>}</Button>))}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang) }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints" }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang) }, { id: "unpaid", l: lang === "ar" ? "المبالغ غير المدفوعة" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}{tb.id === "complaints" && complaints.length > 0 && <span className="mr-1 bg-red-600 text-white text-xs px-1.5 rounded-full">{complaints.length}</span>}</Button>))}
       </div>
       {tab === "dashboard" && stats && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[{ l: t("admin.revenue", lang), v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600" }, { l: t("admin.totalTrips", lang), v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-xl font-bold`}>{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}</div>)}
       {tab === "drivers" && (<div className="space-y-3">{pendingDrivers.map((d) => (<Card key={d.id} className="p-4 border-zinc-200"><div className="flex items-center gap-3 mb-3"><Avatar className="w-12 h-12"><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar><div className="flex-1"><div className="font-bold text-black">{d.user?.name}</div><div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate}</div></div><Badge variant="secondary">⏳</Badge></div><div className="flex gap-2"><Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approve", lang)}</Button><Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectBtn", lang)}</Button></div></Card>))}{pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}</div>)}
@@ -1465,7 +1488,109 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
       {tab === "trips" && (<div><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{["all","pending","accepted","driver_arrived","ongoing","completed","cancelled"].map(s => <Button key={s} size="sm" variant={tripFilter === s ? "default" : "outline"} onClick={() => setTripFilter(s)} className={tripFilter === s ? "bg-black hover:bg-zinc-800" : ""}>{s === "all" ? (lang === "ar" ? "الكل" : "All") : s}</Button>)}</div><div className="space-y-2 max-h-[70vh] overflow-y-auto">{allTrips.filter(t => tripFilter === "all" || t.status === tripFilter).map(trip => (<Card key={trip.id} className="p-3 border-zinc-200"><div className="flex items-center justify-between mb-1"><div className="font-bold text-black text-sm">{trip.user?.name || "?"} → {trip.driver?.name || (lang === "ar" ? "بدون سائق" : "No driver")}</div><Badge variant={trip.status === "completed" ? "default" : trip.status === "cancelled" ? "destructive" : "secondary"} className={trip.status === "completed" ? "bg-green-600" : ""}>{trip.status}</Badge></div><div className="text-xs text-zinc-500">{trip.fromAddress} ← {trip.toAddress}</div><div className="flex justify-between mt-1 text-xs"><span className="text-zinc-400">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span><span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span></div></Card>))}{allTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد رحلات" : "No trips"}</Card>}</div></div>)}
 
       {tab === "complaints" && (<div className="space-y-3 max-h-[70vh] overflow-y-auto">{complaints.map((c, i) => (<Card key={c.id || i} className="p-4 border-zinc-200 border-red-100"><div className="flex items-start justify-between mb-2"><Badge className="bg-red-600">🚨 {lang === "ar" ? "شكوى" : "Complaint"}</Badge><span className="text-xs text-zinc-400">{new Date(c.createdAt).toLocaleString("ar-SA")}</span></div><div className="font-bold text-black text-sm mb-1">{c.title}</div><div className="text-sm text-zinc-600 whitespace-pre-line">{c.message}</div></Card>))}{complaints.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد شكاوى" : "No complaints"}</Card>}</div>)}
+
+      {tab === "coupons" && (<div className="space-y-4"><Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "إنشاء كوبون جديد" : "Create new coupon"}</h3><div className="grid grid-cols-2 gap-3"><div><Label>{lang === "ar" ? "الكود" : "Code"}</Label><Input value={newCoupon.code} onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })} placeholder="SUMMER2026" className="uppercase" /></div><div><Label>{lang === "ar" ? "النوع" : "Type"}</Label><Select value={newCoupon.type} onValueChange={(v) => setNewCoupon({ ...newCoupon, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fixed">{lang === "ar" ? "مبلغ ثابت" : "Fixed amount"}</SelectItem><SelectItem value="percentage">{lang === "ar" ? "نسبة مئوية" : "Percentage"}</SelectItem></SelectContent></Select></div><div><Label>{lang === "ar" ? "القيمة" : "Value"}</Label><Input type="number" value={newCoupon.value} onChange={(e) => setNewCoupon({ ...newCoupon, value: e.target.value })} placeholder="20" /></div><div><Label>{lang === "ar" ? "عدد الاستخدامات" : "Max uses"}</Label><Input type="number" value={newCoupon.maxUses} onChange={(e) => setNewCoupon({ ...newCoupon, maxUses: e.target.value })} placeholder="1" /></div></div><Button onClick={async () => { if (!newCoupon.code || !newCoupon.value) return; const res = await fetch("/api/admin/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...newCoupon, createdById: user?.id }) }); if (res.ok) { toast({ title: lang === "ar" ? "✅ تم إنشاء الكوبون" : "✅ Coupon created" }); setNewCoupon({ code: "", type: "fixed", value: "", maxUses: "1" }); loadCoupons(); } }} className="w-full bg-black hover:bg-zinc-800 h-12 mt-3">{lang === "ar" ? "إنشاء" : "Create"}</Button></Card><div className="space-y-2">{allCoupons.map(c => (<Card key={c.id} className="p-3 border-zinc-200"><div className="flex items-center justify-between"><div><div className="font-bold text-black">{c.code}</div><div className="text-xs text-zinc-500">{c.type === "percentage" ? `${c.value}%` : `${c.value} ر.س`} • {c.usesCount}/{c.maxUses} {lang === "ar" ? "استخدام" : "uses"}</div></div><Badge className={c.isActive ? "bg-green-600" : "bg-zinc-400"}>{c.isActive ? "✅" : "⏸️"}</Badge></div></Card>))}{allCoupons.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد كوبونات" : "No coupons"}</Card>}</div></div>)}
     </div>
+  );
+}
+
+// ===== RATING DIALOG =====
+function RatingDialog({ open, onOpenChange, tripId, fromUserId, toUserId, targetName, ratedBy, lang }: {
+  open: boolean; onOpenChange: (o: boolean) => void; tripId: string; fromUserId: string; toUserId: string; targetName: string; ratedBy: "rider" | "driver"; lang: Lang;
+}) {
+  const [stars, setStars] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [review, setReview] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const submit = async () => {
+    if (stars === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/trips/rate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId, fromUserId, toUserId, rating: stars, review, ratedBy }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: lang === "ar" ? "شكراً لتقييمك! ⭐" : "Thanks for rating! ⭐" });
+      setStars(0); setReview("");
+      onOpenChange(false);
+    } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{lang === "ar" ? "قيّم رحلتك" : "Rate your trip"}</DialogTitle>
+          <DialogDescription>{lang === "ar" ? `كيف كانت تجربتك مع ${targetName}؟` : `How was your experience with ${targetName}?`}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="flex justify-center gap-2">
+            {[1,2,3,4,5].map(n => (
+              <button key={n} onClick={() => setStars(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} className="text-4xl transition-transform hover:scale-125">
+                <span className={n <= (hover || stars) ? "text-yellow-400" : "text-zinc-300"}>★</span>
+              </button>
+            ))}
+          </div>
+          {stars > 0 && <p className="text-center text-sm font-medium text-zinc-600">{["", lang === "ar" ? "سيء جداً" : "Very bad", lang === "ar" ? "سيء" : "Bad", lang === "ar" ? "مقبول" : "OK", lang === "ar" ? "جيد" : "Good", lang === "ar" ? "ممتاز" : "Excellent"][stars]}</p>}
+          <div><Label>{lang === "ar" ? "تعليق (اختياري)" : "Review (optional)"}</Label><Textarea value={review} onChange={(e) => setReview(e.target.value)} rows={3} placeholder={lang === "ar" ? "اكتب تعليقك..." : "Write a review..."} /></div>
+          <Button onClick={submit} disabled={submitting || stars === 0} className="w-full bg-black hover:bg-zinc-800 h-12">{submitting ? (lang === "ar" ? "جارٍ الإرسال..." : "Sending...") : (lang === "ar" ? "إرسال التقييم" : "Submit rating")}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== COUPONS SECTION (in Profile) =====
+function CouponsSection({ userId, lang }: { userId: string; lang: Lang }) {
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const load = useCallback(() => {
+    fetch(`/api/coupons?userId=${userId}`).then(r => r.json()).then(d => setCoupons(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const apply = async () => {
+    if (!code.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code.toUpperCase(), userId }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: lang === "ar" ? "🎉 تم تفعيل الكوبون!" : "🎉 Coupon activated!" });
+      setCode(""); load();
+    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Card className="p-6 border-zinc-200">
+      <h3 className="font-bold text-black mb-4">🎫 {lang === "ar" ? "كوبونات الخصم" : "Discount Coupons"}</h3>
+      <div className="flex gap-2 mb-4">
+        <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={lang === "ar" ? "أدخل كود الخصم" : "Enter coupon code"} className="flex-1 uppercase" />
+        <Button onClick={apply} disabled={loading || !code.trim()} className="bg-black hover:bg-zinc-800">{lang === "ar" ? "تفعيل" : "Apply"}</Button>
+      </div>
+      <div className="space-y-2">
+        {coupons.map(c => (
+          <div key={c.id} className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded-xl">
+            <div>
+              <div className="font-bold text-black">{c.code}</div>
+              <div className="text-xs text-green-600">{c.type === "percentage" ? `${c.value}% خصم` : `${c.value} ر.س خصم`}</div>
+            </div>
+            <Badge className="bg-green-600">✅ {lang === "ar" ? "مفعّل" : "Active"}</Badge>
+          </div>
+        ))}
+        {coupons.length === 0 && <p className="text-sm text-zinc-500 text-center py-4">{lang === "ar" ? "لا توجد كوبونات مفعّلة" : "No active coupons"}</p>}
+      </div>
+    </Card>
   );
 }
 

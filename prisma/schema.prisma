@@ -181,3 +181,18 @@ model Notification {
   isRead        Boolean  @default(false)
   createdAt     DateTime @default(now())
 }
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String   @default("fixed") // fixed, percentage
+  value       Float    // amount or percentage
+  minTripPrice Float   @default(0)
+  maxUses     Int      @default(1)
+  usesCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+  createdById String?  // admin who created
+  appliedToId String?  // user it's applied to
+  createdAt   DateTime @default(now())
+}
