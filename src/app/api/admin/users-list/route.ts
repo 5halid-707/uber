@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         city: true, region: true, isDriver: true, isAdmin: true,
         isBlocked: true, isVerified: true, rating: true, tripsCount: true,
         walletBalance: true, currentLat: true, currentLng: true,
-        blockedAt: true, blockReason: true, blockNotes: true, createdAt: true,
+        blockedAt: true, blockReason: true,  createdAt: true,
       },
       orderBy: { createdAt: "desc" },
     });

@@ -48,8 +48,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       lat: driver.currentLat,
       lng: driver.currentLng,
-      heading: driver.heading || null,
-      speed: driver.speed || null,
       driverId: driver.userId,
       carModel: driver.carModel,
       carPlate: driver.carPlate,
@@ -63,7 +61,6 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/drivers/location
-// Body: { driverUserId, lat, lng, heading?, speed? }
 // - Updates driver.currentLat / currentLng
 export async function POST(request: NextRequest) {
   try {
