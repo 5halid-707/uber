@@ -217,35 +217,228 @@ export default function Page() {
 function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user: User | null; lang: Lang }) {
   const services = serviceTypes.map((s) => ({ id: s.id, name: lang === "ar" ? s.name : t(`services.${s.id}`, lang), desc: s.desc, emoji: s.emoji }));
   const stats = [{ v: "+5M", l: t("home.stats.trips", lang) }, { v: "+50K", l: t("home.stats.drivers", lang) }, { v: "4.9", l: t("home.stats.rating", lang) }, { v: "13", l: t("home.stats.regions", lang) }];
+  const [city, setCity] = useState("الرياض");
+  const [reserveDate, setReserveDate] = useState("");
+  const [reserveTime, setReserveTime] = useState("");
+  const [showReserve, setShowReserve] = useState(false);
 
   return (
     <div>
+      {/* ===== HERO with inline search like Uber.com ===== */}
       <section className="relative bg-black text-white overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <Badge className="bg-zinc-800 text-white border-zinc-700">{t("home.badge", lang)}</Badge>
-              <h1 className="text-4xl md:text-6xl font-bold leading-tight">{t("home.heroTitle", lang)}<br /><span className="text-zinc-400">{t("home.heroSubtitle", lang)}</span></h1>
-              <p className="text-lg text-zinc-300 max-w-md">{t("home.heroDesc", lang)}</p>
-              <div className="flex flex-wrap gap-3">
-                {/* "Become a Driver" is MORE prominent - green and bigger */}
-                <Button size="lg" onClick={() => navigate("driver-register")} className="bg-green-600 hover:bg-green-700 text-white text-lg px-8 h-14 font-bold animate-pulse">🚗 {t("home.beDriver", lang)}</Button>
-                {!user?.isDriver && <Button size="lg" onClick={() => navigate("ride")} className="bg-white text-black hover:bg-zinc-200 text-lg px-8 h-14">{t("home.bookNow", lang)} ←</Button>}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-20">
+          <div className="max-w-2xl">
+            <Badge className="bg-zinc-800 text-white border-zinc-700 mb-4">{t("home.badge", lang)}</Badge>
+            <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-4">{lang === "ar" ? "اذهب إلى أي مكان مع أوبر" : "Go anywhere with Uber"}</h1>
+            <p className="text-lg text-zinc-300 mb-8">{lang === "ar" ? "التقِ بالسائق الآن - احجز رحلتك في دقائق" : "Meet your driver now - book in minutes"}</p>
+
+            {/* Inline booking form like Uber.com */}
+            <div className="bg-white rounded-2xl p-4 md:p-6 space-y-3">
+              <div className="flex items-center gap-3 border-b border-zinc-100 pb-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full shrink-0"></div>
+                <input
+                  placeholder={lang === "ar" ? "موقع الاستلام" : "Pickup location"}
+                  className="flex-1 bg-transparent text-black outline-none text-base"
+                  onFocus={() => navigate("ride")}
+                  readOnly
+                />
               </div>
-              {!user && <p className="text-sm text-zinc-400">{t("home.welcomeBonus", lang)}</p>}
-            </div>
-            <div className="relative">
-              <div className="aspect-square max-w-md mx-auto rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-900">
-                <iframe src="https://www.google.com/maps?q=Riyadh&output=embed" className="w-full h-full" style={{ border: 0, minHeight: "300px" }} loading="lazy" />
+              <div className="flex items-center gap-3 pb-3">
+                <div className="w-3 h-3 bg-red-500 rounded-sm shrink-0"></div>
+                <input
+                  placeholder={lang === "ar" ? "موقع التسليم" : "Dropoff location"}
+                  className="flex-1 bg-transparent text-black outline-none text-base"
+                  onFocus={() => navigate("ride")}
+                  readOnly
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => navigate("ride")} className="flex-1 bg-black hover:bg-zinc-800 h-12 text-base font-bold">
+                  {lang === "ar" ? "اطّلع على الأسعار" : "See prices"}
+                </Button>
+                <Button onClick={() => navigate("ride")} variant="outline" className="flex-1 h-12 text-base border-zinc-300 text-black hover:bg-zinc-100">
+                  {lang === "ar" ? "احجز الآن" : "Book now"}
+                </Button>
               </div>
             </div>
+
+            {!user && (
+              <p className="text-sm text-zinc-400 mt-4">{lang === "ar" ? "سجّل الدخول للاطّلاع على نشاطك الأخير" : "Sign in to see your recent activity"}</p>
+            )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 pt-16 border-t border-zinc-800">
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12 pt-12 border-t border-zinc-800">
             {stats.map((s, i) => (<div key={i} className="text-center"><div className="text-3xl md:text-4xl font-bold">{s.v}</div><div className="text-sm text-zinc-400 mt-1">{s.l}</div></div>))}
           </div>
         </div>
       </section>
 
+      {/* ===== SUGGESTIONS like Uber.com (3 cards) ===== */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-black mb-8">{lang === "ar" ? "استكشف ما يمكنك فعله مع أوبر" : "Explore what you can do with Uber"}</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Rides */}
+            <Card className="overflow-hidden cursor-pointer hover:shadow-xl transition-all border-zinc-200" onClick={() => navigate("ride")}>
+              <div className="h-48 bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center">
+                <span className="text-6xl">🚗</span>
+              </div>
+              <div className="p-6">
+                <h3 className="font-bold text-xl text-black mb-2">{lang === "ar" ? "المشاوير" : "Rides"}</h3>
+                <p className="text-sm text-zinc-500 mb-4">{lang === "ar" ? "اذهب إلى أي مكان مع أوبر. اطلب مشواراً واركب السيارة وانطلق إلى وجهتك." : "Go anywhere with Uber. Request a ride, hop in, and go."}</p>
+                <Button variant="link" className="p-0 h-auto text-black font-bold">{lang === "ar" ? "التفاصيل" : "Details"} →</Button>
+              </div>
+            </Card>
+
+            {/* Reserve */}
+            <Card className="overflow-hidden cursor-pointer hover:shadow-xl transition-all border-zinc-200" onClick={() => setShowReserve(true)}>
+              <div className="h-48 bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center">
+                <span className="text-6xl">📅</span>
+              </div>
+              <div className="p-6">
+                <h3 className="font-bold text-xl text-black mb-2">{lang === "ar" ? "احجز" : "Reserve"}</h3>
+                <p className="text-sm text-zinc-500 mb-4">{lang === "ar" ? "احجز رحلتك مقدماً حتى تتمكن من الاسترخاء في يوم مشوارك." : "Reserve your ride in advance so you can relax on the day of your trip."}</p>
+                <Button variant="link" className="p-0 h-auto text-black font-bold">{lang === "ar" ? "التفاصيل" : "Details"} →</Button>
+              </div>
+            </Card>
+
+            {/* Travel */}
+            <Card className="overflow-hidden cursor-pointer hover:shadow-xl transition-all border-zinc-200" onClick={() => navigate("ride")}>
+              <div className="h-48 bg-gradient-to-br from-blue-700 to-blue-900 flex items-center justify-center">
+                <span className="text-6xl">✈️</span>
+              </div>
+              <div className="p-6">
+                <h3 className="font-bold text-xl text-black mb-2">{lang === "ar" ? "سفر" : "Travel"}</h3>
+                <p className="text-sm text-zinc-500 mb-4">{lang === "ar" ? "احصل على سيارات أجرة مريحة وبأسعار معقولة عند بابك في أي وقت." : "Get comfortable, affordable rides at your doorstep, anytime."}</p>
+                <Button variant="link" className="p-0 h-auto text-black font-bold">{lang === "ar" ? "التفاصيل" : "Details"} →</Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== UBER RESERVE (Schedule ahead) ===== */}
+      <section className="py-16 bg-zinc-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">{lang === "ar" ? "خطّط لوقت لاحق" : "Plan for later"}</h2>
+              <p className="text-lg text-zinc-500 mb-6">{lang === "ar" ? "احصل على مشوارك الصحيح مع Uber Reserve" : "Get your ride right with Uber Reserve"}</p>
+              <div className="space-y-3 mb-6">
+                <div className="flex items-start gap-3">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <p className="text-sm text-zinc-600">{lang === "ar" ? "اختر موعد الالتقاء الدقيق حتى 90 يوماً مقدماً." : "Choose your exact pickup time up to 90 days in advance."}</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <p className="text-sm text-zinc-600">{lang === "ar" ? "هناك وقت انتظار إضافي للالتقاء بالسائق." : "Extra wait time included to meet your driver."}</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <p className="text-sm text-zinc-600">{lang === "ar" ? "يمكنك إلغاء الحجز بدون تحمُّل أي رسوم قبل الموعد بمدة تصل إلى 60 دقيقة." : "Cancel for free up to 60 minutes before your ride."}</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <Card className="p-6 border-zinc-200">
+                <h3 className="font-bold text-black mb-4">{lang === "ar" ? "اختر التاريخ والوقت" : "Choose date and time"}</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-zinc-500 text-sm mb-1 block">{lang === "ar" ? "التاريخ" : "Date"}</Label>
+                    <Input type="date" value={reserveDate} onChange={(e) => setReserveDate(e.target.value)} className="h-12" />
+                  </div>
+                  <div>
+                    <Label className="text-zinc-500 text-sm mb-1 block">{lang === "ar" ? "الوقت" : "Time"}</Label>
+                    <Input type="time" value={reserveTime} onChange={(e) => setReserveTime(e.target.value)} className="h-12" />
+                  </div>
+                  <Button onClick={() => navigate("ride")} className="w-full bg-black hover:bg-zinc-800 h-12" disabled={!reserveDate || !reserveTime}>
+                    {lang === "ar" ? "التالي" : "Next"}
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== UBER ONE (Rewards) ===== */}
+      <section className="py-16 bg-black text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <Badge className="bg-green-600 text-white mb-4">Uber One</Badge>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">{lang === "ar" ? "المكافآت التي تستحقها" : "Rewards you deserve"}</h2>
+              <p className="text-lg text-zinc-400 mb-6">{lang === "ar" ? "اشترك في Uber One واحصل على خصم 10% على جميع الرحلات والتوصيل، إلغاء مجاني، وأولوية في الطلبات." : "Join Uber One and get 10% off all rides and deliveries, free cancellations, and priority booking."}</p>
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center gap-3"><span className="text-green-400 text-xl">✓</span><span>{lang === "ar" ? "خصم 10% على الرحلات" : "10% off rides"}</span></div>
+                <div className="flex items-center gap-3"><span className="text-green-400 text-xl">✓</span><span>{lang === "ar" ? "توصيل مجاني للطعام" : "Free food delivery"}</span></div>
+                <div className="flex items-center gap-3"><span className="text-green-400 text-xl">✓</span><span>{lang === "ar" ? "أولوية في الحجز" : "Priority booking"}</span></div>
+                <div className="flex items-center gap-3"><span className="text-green-400 text-xl">✓</span><span>{lang === "ar" ? "إلغاء مجاني" : "Free cancellations"}</span></div>
+              </div>
+              <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg">{lang === "ar" ? "اشترك الآن - 14.99 ر.س/شهر" : "Join now - 14.99 SAR/month"}</Button>
+            </div>
+            <div className="text-center">
+              <div className="text-9xl mb-4">🎁</div>
+              <p className="text-zinc-400">{lang === "ar" ? "وفّر أكثر من 2000 ر.س سنوياً" : "Save over 2000 SAR per year"}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== DRIVE WITH UBER ===== */}
+      <section className="py-16 bg-zinc-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="order-2 md:order-1">
+              <div className="aspect-video bg-gradient-to-br from-zinc-800 to-black rounded-3xl flex items-center justify-center">
+                <span className="text-9xl">🚗</span>
+              </div>
+            </div>
+            <div className="order-1 md:order-2">
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">{lang === "ar" ? "يمكنك القيادة متى شئت، وتحقيق ما تحتاج إليه من دخل" : "Drive when you want, earn what you need"}</h2>
+              <p className="text-lg text-zinc-500 mb-6">{lang === "ar" ? "حقِّق الأرباح بما يناسب مواعيدك من خلال خدمات التوصيل أو إجراء المشاوير، أو الاثنين." : "Earn on your schedule with deliveries or rides, or both."}</p>
+              <div className="space-y-2 mb-6">
+                <p className="text-sm text-zinc-600">{lang === "ar" ? "أرباح تصل إلى 7,400 ر.س شهرياً" : "Earn up to 7,400 SAR/month"}</p>
+                <p className="text-sm text-zinc-600">{lang === "ar" ? "مرونة كاملة في المواعيد" : "Complete schedule flexibility"}</p>
+                <p className="text-sm text-zinc-600">{lang === "ar" ? "دفعات أسبوعية سريعة" : "Fast weekly payouts"}</p>
+              </div>
+              <Button size="lg" onClick={() => navigate("driver-register")} className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg font-bold animate-pulse">{lang === "ar" ? "ابدأ الآن" : "Get started"}</Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== UBER FOR BUSINESS ===== */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <Badge variant="secondary" className="mb-4">{lang === "ar" ? "أوبر للأعمال" : "Uber for Business"}</Badge>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">{lang === "ar" ? "أوبر في ثوبها الجديد لقطاع الأعمال" : "Uber for Business"}</h2>
+              <p className="text-lg text-zinc-500 mb-6">{lang === "ar" ? "منصة أوبر للأعمال لإدارة الرحلات العالمية وطلبات الوجبات وخدمات إرسال الطرود المحلية للشركات من أي حجم." : "A platform for managing global rides, meals, and local package delivery for companies of any size."}</p>
+              <div className="flex gap-3">
+                <Button size="lg" className="bg-black hover:bg-zinc-800 h-14 px-8 text-lg">{lang === "ar" ? "ابدأ الآن" : "Get started"}</Button>
+                <Button size="lg" variant="outline" className="h-14 px-8 text-lg border-zinc-300">{lang === "ar" ? "اطَّلع على حلولنا" : "See solutions"}</Button>
+              </div>
+            </div>
+            <div className="aspect-video bg-gradient-to-br from-blue-700 to-blue-900 rounded-3xl flex items-center justify-center">
+              <span className="text-9xl">🏢</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== CITY CENTER (Explore) ===== */}
+      <section className="py-16 bg-black text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">{lang === "ar" ? "كل ما تحتاجه لتشجع مع مدينتك" : "Everything you need to cheer in your city"}</h2>
+          <p className="text-lg text-zinc-400 mb-8 max-w-2xl mx-auto">{lang === "ar" ? "في هذا الموسم، سنوصلك إلى المباراة أو نجلب لك ما تشتهيه حتى باب منزلك—لأن الشيء الوحيد الذي يجب أن تركز عليه هو النتيجة." : "This season, we'll get you to the match or bring what you crave to your door."}</p>
+          <Button size="lg" className="bg-white text-black hover:bg-zinc-200 h-14 px-8 text-lg">{lang === "ar" ? "ادخل في اللعبة" : "Get in the game"}</Button>
+        </div>
+      </section>
+
+      {/* ===== SERVICES GRID ===== */}
       <section className="py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
@@ -266,6 +459,7 @@ function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user:
         </div>
       </section>
 
+      {/* ===== COVERAGE ===== */}
       <section className="py-16 bg-zinc-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
@@ -284,13 +478,74 @@ function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user:
         </div>
       </section>
 
+      {/* ===== APP DOWNLOAD (QR codes) ===== */}
       <section className="py-16 bg-black text-white">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">{t("home.ctaTitle", lang)}</h2>
-          <p className="text-zinc-400 mb-8">{t("home.ctaDesc", lang)}</p>
-          <Button size="lg" onClick={() => navigate("ride")} className="bg-white text-black hover:bg-zinc-200 h-14 px-8 text-lg">{t("home.bookNow", lang)}</Button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">{lang === "ar" ? "الأمر أسهل داخل التطبيقات" : "Easier in the apps"}</h2>
+              <p className="text-zinc-400 mb-6">{lang === "ar" ? "نزِّل تطبيق أوبر للركاب وتطبيق الشريك للسائقين" : "Download the Uber app for riders and the Partner app for drivers"}</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-4 bg-zinc-900 p-4 rounded-xl">
+                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shrink-0">
+                    <span className="text-3xl">📱</span>
+                  </div>
+                  <div>
+                    <p className="font-bold">{lang === "ar" ? "نزِّل تطبيق أوبر" : "Download Uber app"}</p>
+                    <p className="text-sm text-zinc-400">{lang === "ar" ? "امسح الرمز ضوئياً للتنزيل" : "Scan the QR code"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 bg-zinc-900 p-4 rounded-xl">
+                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shrink-0">
+                    <span className="text-3xl">🚗</span>
+                  </div>
+                  <div>
+                    <p className="font-bold">{lang === "ar" ? "نزِّل تطبيق الشريك" : "Download Partner app"}</p>
+                    <p className="text-sm text-zinc-400">{lang === "ar" ? "امسح الرمز ضوئياً للتنزيل" : "Scan the QR code"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-center gap-8">
+              <div className="text-center">
+                <div className="w-40 h-40 bg-white rounded-2xl p-3 mb-3">
+                  {/* QR code placeholder */}
+                  <div className="w-full h-full bg-black rounded grid grid-cols-8 grid-rows-8 gap-px p-2">
+                    {Array.from({ length: 64 }).map((_, i) => (
+                      <div key={i} className={`${Math.random() > 0.5 ? "bg-white" : "bg-black"} rounded-sm`} />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm text-zinc-400">{lang === "ar" ? "أندرويد و iOS" : "Android & iOS"}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
+      {/* ===== CTA ===== */}
+      <section className="py-16 bg-white">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-black">{t("home.ctaTitle", lang)}</h2>
+          <p className="text-zinc-500 mb-8">{t("home.ctaDesc", lang)}</p>
+          <div className="flex justify-center gap-3 flex-wrap">
+            <Button size="lg" onClick={() => navigate("ride")} className="bg-black hover:bg-zinc-800 h-14 px-8 text-lg">{t("home.bookNow", lang)}</Button>
+            <Button size="lg" onClick={() => navigate("driver-register")} className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg font-bold">{t("home.beDriver", lang)}</Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Reserve Dialog */}
+      <Dialog open={showReserve} onOpenChange={setShowReserve}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{lang === "ar" ? "جدولة رحلة مسبقاً" : "Reserve a ride"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div><Label>{lang === "ar" ? "التاريخ" : "Date"}</Label><Input type="date" value={reserveDate} onChange={(e) => setReserveDate(e.target.value)} className="h-12" /></div>
+            <div><Label>{lang === "ar" ? "الوقت" : "Time"}</Label><Input type="time" value={reserveTime} onChange={(e) => setReserveTime(e.target.value)} className="h-12" /></div>
+            <Button onClick={() => { setShowReserve(false); navigate("ride"); }} className="w-full bg-black hover:bg-zinc-800 h-12" disabled={!reserveDate || !reserveTime}>{lang === "ar" ? "متابعة" : "Continue"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
