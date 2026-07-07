@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
     const ratingVal = parseInt(rating);
     const reviewText = review || null;
 
-    // Update trip with rating
+    // Update trip with rating (if trip exists)
     if (ratedBy === "rider") {
-      await db.trip.update({ where: { id: tripId }, data: { rating: ratingVal, review: reviewText } });
+      try { await db.trip.update({ where: { id: tripId }, data: { rating: ratingVal, review: reviewText } }); } catch {}
     }
 
     // Update user rating (average)
