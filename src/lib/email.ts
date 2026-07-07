@@ -51,7 +51,7 @@ export async function sendEmail({ to, subject, html, text }: EmailParams) {
     const t = getTransporter();
 
     const info = await t.sendMail({
-      from: `"حراج" <${process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@haraj.sa"}>`,
+      from: `"أوبر" <${process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@uber.sa"}>`,
       to,
       subject,
       html,
@@ -80,16 +80,16 @@ export function newUserRegistrationEmail(adminEmail: string, user: {
 }) {
   return {
     to: adminEmail,
-    subject: `🔔 مستخدم جديد سجّل في حراج: ${user.username}`,
+    subject: `🔔 مستخدم جديد سجّل في أوبر: ${user.username}`,
     html: `
       <div dir="rtl" style="font-family: 'Cairo', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
         <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 20px;">
             <h1 style="color: #16a34a; margin: 0; font-size: 28px;">ح</h1>
-            <p style="color: #16a34a; margin: 5px 0 0;">حراج</p>
+            <p style="color: #16a34a; margin: 5px 0 0;">أوبر</p>
           </div>
           <h2 style="color: #16a34a; margin: 0 0 20px;">🔔 مستخدم جديد في موقعك</h2>
-          <p style="font-size: 16px; color: #333;">تم تسجيل مستخدم جديد في موقع حراج:</p>
+          <p style="font-size: 16px; color: #333;">تم تسجيل مستخدم جديد في موقع أوبر:</p>
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f9f9f9; border-radius: 8px;">
             <tr><td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold; width: 30%;">الاسم:</td><td style="padding: 12px; border-bottom: 1px solid #eee;">${user.username}</td></tr>
             <tr><td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold;">البريد:</td><td style="padding: 12px; border-bottom: 1px solid #eee;" dir="ltr">${user.email}</td></tr>
@@ -99,7 +99,7 @@ export function newUserRegistrationEmail(adminEmail: string, user: {
           </table>
           <p style="font-size: 14px; color: #666;">يمكنك إدارة المستخدمين من لوحة التحكم.</p>
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-          <p style="font-size: 12px; color: #999; text-align: center;">هذا إيميل تلقائي من موقع حراج - لا ترد عليه</p>
+          <p style="font-size: 12px; color: #999; text-align: center;">هذا إيميل تلقائي من موقع أوبر - لا ترد عليه</p>
         </div>
       </div>
     `,
@@ -109,17 +109,17 @@ export function newUserRegistrationEmail(adminEmail: string, user: {
 export function welcomeEmail(user: { username: string; email: string }) {
   return {
     to: user.email,
-    subject: `🎉 أهلاً بك في حراج يا ${user.username}!`,
+    subject: `🎉 أهلاً بك في أوبر يا ${user.username}!`,
     html: `
       <div dir="rtl" style="font-family: 'Cairo', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
         <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 20px;">
             <h1 style="color: #16a34a; margin: 0; font-size: 36px;">ح</h1>
-            <p style="color: #16a34a; margin: 5px 0 0; font-size: 18px;">حراج</p>
+            <p style="color: #16a34a; margin: 5px 0 0; font-size: 18px;">أوبر</p>
           </div>
-          <h2 style="color: #16a34a; margin: 0 0 20px;">🎉 أهلاً بك في حراج!</h2>
+          <h2 style="color: #16a34a; margin: 0 0 20px;">🎉 أهلاً بك في أوبر!</h2>
           <p style="font-size: 16px; color: #333;">مرحباً ${user.username}،</p>
-          <p style="font-size: 16px; color: #333; line-height: 1.6;">شكراً لتسجيلك في حراج - أكبر سوق للإعلانات المبوبة في المملكة العربية السعودية.</p>
+          <p style="font-size: 16px; color: #333; line-height: 1.6;">شكراً لتسجيلك في أوبر - أكبر سوق للإعلانات المبوبة في المملكة العربية السعودية.</p>
           <p style="font-size: 16px; color: #333; line-height: 1.6;">يمكنك الآن:</p>
           <ul style="font-size: 16px; color: #333; line-height: 1.8; padding-right: 20px;">
             <li>نشر إعلاناتك مجاناً</li>
@@ -131,9 +131,9 @@ export function welcomeEmail(user: { username: string; email: string }) {
           <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #16a34a;">
             <p style="margin: 0; font-size: 14px; color: #15803d;">💡 نصيحة: أضف صوراً عالية الجودة لإعلاناتك لتحصل على مشاهدات أكثر</p>
           </div>
-          <p style="font-size: 14px; color: #666; margin-top: 30px;">مع تحيات،<br>فريق حراج</p>
+          <p style="font-size: 14px; color: #666; margin-top: 30px;">مع تحيات،<br>فريق أوبر</p>
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-          <p style="font-size: 12px; color: #999; text-align: center;">هذا إيميل تلقائي من موقع حراج - لا ترد عليه</p>
+          <p style="font-size: 12px; color: #999; text-align: center;">هذا إيميل تلقائي من موقع أوبر - لا ترد عليه</p>
         </div>
       </div>
     `,
@@ -156,7 +156,7 @@ export function transactionStatusEmail(user: { username: string; email: string }
         <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 20px;">
             <h1 style="color: #16a34a; margin: 0; font-size: 36px;">ح</h1>
-            <p style="color: #16a34a; margin: 5px 0 0; font-size: 18px;">حراج</p>
+            <p style="color: #16a34a; margin: 5px 0 0; font-size: 18px;">أوبر</p>
           </div>
           <h2 style="color: ${isApproved ? "#16a34a" : "#dc2626"}; margin: 0 0 20px;">${isApproved ? "✅" : "❌"} ${isDeposit ? "طلب الإيداع" : "طلب السحب"}</h2>
           <p style="font-size: 16px; color: #333;">مرحباً ${user.username}،</p>
@@ -167,9 +167,9 @@ export function transactionStatusEmail(user: { username: string; email: string }
             }
           </p>
           ${txn.adminNote ? `<div style="background: #fef3c7; padding: 12px; border-radius: 8px; margin: 15px 0; border-right: 4px solid #f59e0b;"><p style="margin: 0; font-size: 14px; color: #92400e;"><strong>ملاحظة الأدمن:</strong> ${txn.adminNote}</p></div>` : ""}
-          <p style="font-size: 14px; color: #666; margin-top: 30px;">مع تحيات،<br>فريق حراج</p>
+          <p style="font-size: 14px; color: #666; margin-top: 30px;">مع تحيات،<br>فريق أوبر</p>
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-          <p style="font-size: 12px; color: #999; text-align: center;">هذا إيميل تلقائي من موقع حراج - لا ترد عليه</p>
+          <p style="font-size: 12px; color: #999; text-align: center;">هذا إيميل تلقائي من موقع أوبر - لا ترد عليه</p>
         </div>
       </div>
     `,
