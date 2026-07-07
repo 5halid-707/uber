@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // Increase driver earnings + trips count
     await db.driver
       .update({
-        where: { id: driverId },
+        where: { userId: driverId },
         data: {
           earnings: { increment: received },
           tripsCount: { increment: 1 },

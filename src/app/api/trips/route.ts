@@ -28,11 +28,13 @@ export async function GET(request: NextRequest) {
     });
 
     const driverIds = [...new Set(tripsRaw.map((t) => t.driverId).filter(Boolean) as string[])];
+    // driverId in Trip is the USER's id, so look up Driver by userId
     const drivers = driverIds.length
       ? await db.driver.findMany({
-          where: { id: { in: driverIds } },
+          where: { userId: { in: driverIds } },
           select: {
             id: true,
+            userId: true,
             carModel: true,
             carPlate: true,
             carColor: true,
@@ -43,13 +45,14 @@ export async function GET(request: NextRequest) {
           },
         })
       : [];
-    const driverMap = new Map(drivers.map((d) => [d.id, d]));
+    // Map by userId so we can match Trip.driverId (which is userId)
+    const driverMap = new Map(drivers.map((d) => [d.userId, d]));
     const trips = tripsRaw.map((t) => ({
       ...t,
       driver: t.driverId ? driverMap.get(t.driverId) ?? null : null,
     }));
 
-    return NextResponse.json({ trips });
+    return NextResponse.json(trips);
   } catch (error) {
     console.error("GET /api/trips error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء جلب الرحلات" }, { status: 500 });
@@ -111,7 +114,7 @@ export async function POST(request: NextRequest) {
         })
         .catch(() => {});
 
-      return NextResponse.json({ trip: updated });
+      return NextResponse.json(updated);
     }
 
     // === Create new trip branch ===
@@ -170,7 +173,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ trip }, { status: 201 });
+    return NextResponse.json(trip, { status: 201 });
   } catch (error) {
     console.error("POST /api/trips error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء معالجة الرحلة" }, { status: 500 });

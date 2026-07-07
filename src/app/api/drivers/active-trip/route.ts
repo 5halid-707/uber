@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET /api/drivers/active-trip?driverId=xxx
-// driverId here is the Driver.id (not userId)
-// Returns: { activeTrip, availableTrips }
+// driverId here is the USER's id (not Driver.id)
+// Returns: { activeTrip, availableTrips, isOnline, isApproved }
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,15 +13,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "driverId مطلوب" }, { status: 400 });
     }
 
-    const driver = await db.driver.findUnique({ where: { id: driverId } });
+    // driverId is the USER's id - find Driver by userId
+    const driver = await db.driver.findUnique({ where: { userId: driverId } });
     if (!driver) {
       return NextResponse.json({ error: "السائق غير موجود" }, { status: 404 });
     }
 
-    // Active trip = any trip assigned to this driver that's not completed/cancelled
+    // Active trip = any trip assigned to this driver (by userId) that's not completed/cancelled
     const activeTrip = await db.trip.findFirst({
       where: {
-        driverId,
+        driverId, // This is the userId of the driver
         status: { in: ["accepted", "driver_arrived", "ongoing"] },
       },
       include: {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Available trips = pending trips not yet accepted
-    let availableTrips: Awaited<ReturnType<typeof db.trip.findMany>> = [];
+    let availableTrips: any[] = [];
     if (!activeTrip && driver.isApproved && driver.isOnline) {
       availableTrips = await db.trip.findMany({
         where: { status: "pending", driverId: null },
@@ -68,6 +69,14 @@ export async function GET(request: NextRequest) {
       availableTrips,
       isOnline: driver.isOnline,
       isApproved: driver.isApproved,
+      driverInfo: {
+        carModel: driver.carModel,
+        carPlate: driver.carPlate,
+        carColor: driver.carColor,
+        rating: driver.rating,
+        tripsCount: driver.tripsCount,
+        earnings: driver.earnings,
+      },
     });
   } catch (error) {
     console.error("GET /api/drivers/active-trip error:", error);

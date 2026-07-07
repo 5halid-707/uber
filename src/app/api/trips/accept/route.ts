@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const driver = await db.driver.findUnique({ where: { id: driverId } });
+    // driverId is the USER's id - find Driver by userId
+    const driver = await db.driver.findUnique({ where: { userId: driverId } });
     if (!driver) {
       return NextResponse.json({ error: "السائق غير موجود" }, { status: 404 });
     }
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       },
     });
     const driverData = await db.driver.findUnique({
-      where: { id: driverId },
+      where: { userId: driverId },
       select: {
         id: true,
         carModel: true,
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       })
       .catch(() => {});
 
-    return NextResponse.json({ trip: tripWithDriver });
+    return NextResponse.json(tripWithDriver);
   } catch (error) {
     console.error("POST /api/trips/accept error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء قبول الرحلة" }, { status: 500 });

@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updated = await db.driver.update({
-      where: { id: driver.id },
+      where: { userId: driverId },
       data: { isOnline: !!isOnline },
     });
 

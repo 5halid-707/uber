@@ -42,19 +42,17 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      stats: {
-        totalUsers,
-        totalDrivers,
-        pendingDrivers,
-        approvedDrivers,
-        totalTrips,
-        completedTrips,
-        activeTrips,
-        cancelledTrips,
-        unpaidTrips: unpaidTripsCount,
-        totalRevenue: revenueAgg._sum.finalPrice || 0,
-        totalUnpaid: unpaidAgg._sum.unpaidAmount || 0,
-      },
+      totalUsers,
+      totalDrivers,
+      pendingDrivers,
+      approvedDrivers,
+      totalTrips,
+      completedTrips,
+      activeTrips,
+      cancelledTrips,
+      unpaidTrips: unpaidTripsCount,
+      totalRevenue: revenueAgg._sum.finalPrice || 0,
+      totalUnpaid: unpaidAgg._sum.unpaidAmount || 0,
     });
   } catch (error) {
     console.error("GET /api/admin/stats error:", error);
