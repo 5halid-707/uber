@@ -1,0 +1,337 @@
+  1100→    const finalPrice = activeTrip.finalPrice || activeTrip.price;
+  1101→    const unpaid = Math.max(0, finalPrice - received);
+  1102→    if (unpaid > 0 && !confirm(lang === "ar" ? `المبلغ غير المدفوع: ${unpaid} ر.س\nسيتم إبلاغ الإدارة. متابعة؟` : `Unpaid: ${unpaid} SAR. Continue?`)) return;
+  1103→    try {
+  1104→      const res = await fetch("/api/trips/complete-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: activeTrip.id, driverId: user.id, cashReceived: received }) });
+  1105→      const data = await res.json();
+  1106→      if (!res.ok) throw new Error(data.error);
+  1107→      setTimeout(() => toast({ title: data.message }), 0);
+  1108→      setPaymentDialog({ open: false }); setCashReceived("");
+  1109→    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  1110→  };
+  1111→
+  1112→  if (loading) return <div className="text-center py-20">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>;
+  1113→
+  1114→  return (
+  1115→    <div className="max-w-5xl mx-auto px-4 py-6">
+  1116→      <Card className="p-6 mb-6 border-zinc-200 bg-black text-white">
+  1117→        <div className="flex items-center justify-between">
+  1118→          <div><h2 className="text-2xl font-bold mb-1">{t("driver.status", lang)}</h2><p className="text-zinc-400">{online ? t("driver.onlineDesc", lang) : t("driver.offlineDesc", lang)}</p></div>
+  1119→          <div className="flex items-center gap-3"><span className={online ? "text-green-400" : "text-zinc-500"}>{online ? t("driver.online", lang) : t("driver.offline", lang)}</span><Switch checked={online} onCheckedChange={toggleOnline} /></div>
+  1120→        </div>
+  1121→      </Card>
+  1122→
+  1123→      {/* Live Map showing driver + rider locations */}
+  1124→      {activeTrip && (
+  1125→        <Card className="overflow-hidden mb-6 border-zinc-200">
+  1126→          <div className="h-64">
+  1127→            <LiveMap riderLoc={riderLoc} driverLoc={driverLoc} from={activeTrip.fromAddress} to={activeTrip.toAddress} status={activeTrip.status} />
+  1128→          </div>
+  1129→        </Card>
+  1130→      )}
+  1131→
+  1132→      {activeTrip && (
+  1133→        <Card className="p-6 mb-6 border-2 border-blue-200">
+  1134→          <div className="flex items-center justify-between mb-4">
+  1135→            <h3 className="font-bold text-black text-lg">{t("driver.activeTrip", lang)}</h3>
+  1136→            <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+  1137→          </div>
+  1138→          <div className="bg-zinc-50 p-3 rounded-xl mb-4">
+  1139→            <div className="flex items-center gap-2 mb-2"><span className="text-green-500">●</span><span className="text-black">{activeTrip.fromAddress}</span></div>
+  1140→            <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-black">{activeTrip.toAddress}</span></div>
+  1141→            <div className="mt-2 flex justify-between text-sm"><span className="text-zinc-500">{t("ride.cost", lang)}</span><span className="font-bold text-black">{activeTrip.finalPrice || activeTrip.price} ر.س</span></div>
+  1142→            {activeTrip.user && (
+  1143→              <div className="mt-2 pt-2 border-t border-zinc-200 text-sm text-zinc-500">{lang === "ar" ? "الراكب" : "Rider"}: {activeTrip.user.name} - {activeTrip.user.phone}</div>
+  1144→            )}
+  1145→          </div>
+  1146→          <div className="flex gap-2 flex-wrap">
+  1147→            {activeTrip.status === "accepted" && <Button onClick={driverArrived} className="bg-blue-600 hover:bg-blue-700 flex-1">🚗 {t("driver.arriveBtn", lang)}</Button>}
+  1148→            {activeTrip.status === "driver_arrived" && <Button onClick={startTrip} className="bg-green-600 hover:bg-green-700 flex-1">🚀 {t("driver.startTrip", lang)}</Button>}
+  1149→            {activeTrip.status === "ongoing" && <Button onClick={() => setPaymentDialog({ open: true, tripId: activeTrip.id, finalPrice: activeTrip.finalPrice || activeTrip.price })} className="bg-black hover:bg-zinc-800 flex-1">✅ {t("driver.completeTrip", lang)}</Button>}
+  1150→          </div>
+  1151→        </Card>
+  1152→      )}
+  1153→
+  1154→      {online && !activeTrip && (
+  1155→        <div>
+  1156→          <h3 className="text-xl font-bold text-black mb-3">{t("driver.availableRequests", lang)}</h3>
+  1157→          <div className="space-y-3">
+  1158→            {availableTrips.map((trip) => (
+  1159→              <Card key={trip.id} className="p-4 border-zinc-200">
+  1160→                <div className="flex items-center gap-3">
+  1161→                  <Avatar className="w-12 h-12"><AvatarFallback>{trip.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
+  1162→                  <div className="flex-1">
+  1163→                    <div className="font-bold text-black">{trip.user?.name || "Rider"}</div>
+  1164→                    <div className="text-sm text-zinc-500">{trip.fromAddress} ← {trip.toAddress} • {trip.distance} {t("common.km", lang)}</div>
+  1165→                  </div>
+  1166→                  <div className="text-left"><div className="font-bold text-black">{trip.price} ر.س</div><Button size="sm" onClick={() => acceptTrip(trip.id)} className="bg-black hover:bg-zinc-800 mt-1">{t("driver.accept", lang)}</Button></div>
+  1167→                </div>
+  1168→              </Card>
+  1169→            ))}
+  1170→            {availableTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد طلبات حالياً" : "No requests"}</Card>}
+  1171→          </div>
+  1172→        </div>
+  1173→      )}
+  1174→
+  1175→      {!online && !activeTrip && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">😴</div><h3 className="text-xl font-bold text-black mb-2">{t("driver.offlineMsg", lang)}</h3><p className="text-zinc-500 mb-6">{t("driver.offlineDescMsg", lang)}</p><Button onClick={() => toggleOnline(true)} className="bg-black hover:bg-zinc-800 h-12 px-8">{t("driver.startWork", lang)}</Button></Card>)}
+  1176→
+  1177→      {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} otherAvatar={activeTrip.user?.avatar || null} />}
+  1178→
+  1179→      <Dialog open={paymentDialog.open} onOpenChange={(o) => setPaymentDialog({ ...paymentDialog, open: o })}>
+  1180→        <DialogContent>
+  1181→          <DialogHeader><DialogTitle>{lang === "ar" ? "تأكيد الدفع وإنهاء الرحلة" : "Confirm Payment"}</DialogTitle></DialogHeader>
+  1182→          <div className="space-y-4 py-4">
+  1183→            <div className="bg-zinc-50 p-4 rounded-xl"><div className="flex justify-between"><span className="text-zinc-500">{lang === "ar" ? "السعر الإجمالي" : "Total"}</span><span className="font-bold text-black text-xl">{paymentDialog.finalPrice} ر.س</span></div></div>
+  1184→            <div><Label>{lang === "ar" ? "المبلغ المستلم بالكاش" : "Cash received"}</Label><Input type="number" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} placeholder="0" className="h-12 text-lg" /></div>
+  1185→            {cashReceived && parseFloat(cashReceived) < (paymentDialog.finalPrice || 0) && (<div className="bg-red-50 border border-red-200 p-3 rounded-xl"><div className="flex justify-between"><span className="text-red-600 font-medium">⚠️ {lang === "ar" ? "المبلغ غير المدفوع" : "Unpaid"}</span><span className="font-bold text-red-600">{(paymentDialog.finalPrice || 0) - parseFloat(cashReceived)} ر.س</span></div><p className="text-xs text-red-500 mt-2">{lang === "ar" ? "سيتم إبلاغ الإدارة فوراً وخصم المبلغ من محفظة الراكب" : "Admin will be notified and amount deducted from rider's wallet"}</p></div>)}
+  1186→            <Button onClick={completeWithPayment} className="w-full bg-black hover:bg-zinc-800 h-12">{lang === "ar" ? "تأكيد الدفع وإنهاء الرحلة" : "Confirm & Complete"}</Button>
+  1187→          </div>
+  1188→        </DialogContent>
+  1189→      </Dialog>
+  1190→    </div>
+  1191→  );
+  1192→}
+  1193→
+  1194→// ===== DRIVER REGISTER VIEW =====
+  1195→function DriverRegisterView({ user, lang }: { user: User | null; lang: Lang }) {
+  1196→  const [step, setStep] = useState(1);
+  1197→  const [car, setCar] = useState({ model: "", plate: "", color: "", year: "" });
+  1198→  const [license, setLicense] = useState({ number: "", expiry: "" });
+  1199→  const [docs, setDocs] = useState<Record<string, string>>({});
+  1200→  const [loading, setLoading] = useState(false);
+  1201→  const [done, setDone] = useState(false);
+  1202→  const { toast } = useToast();
+  1203→
+  1204→  const docTypes = [{ id: "license", l: t("driverReg.license", lang), i: "📄" }, { id: "national_id", l: t("driverReg.nationalId", lang), i: "🆔" }, { id: "car_registration", l: t("driverReg.carRegistration", lang), i: "📋" }, { id: "insurance", l: t("driverReg.insurance", lang), i: "🛡️" }, { id: "profile_photo", l: t("driverReg.profilePhoto", lang), i: "📸" }, { id: "vehicle_photo", l: t("driverReg.vehiclePhoto", lang), i: "🚗" }];
+  1205→
+  1206→  const handleFile = (file: File, docType: string) => {
+  1207→    if (file.size > 5 * 1024 * 1024) { toast({ title: lang === "ar" ? "الملف كبير جداً" : "File too large", variant: "destructive" }); return; }
+  1208→    const reader = new FileReader();
+  1209→    reader.onload = () => { setDocs((p) => ({ ...p, [docType]: reader.result as string })); };
+  1210→    reader.readAsDataURL(file);
+  1211→  };
+  1212→
+  1213→  const handleSubmit = async () => {
+  1214→    if (!user) return;
+  1215→    setLoading(true);
+  1216→    try {
+  1217→      const documents = Object.entries(docs).map(([type, fileData]) => ({ type, fileName: `${type}.jpg`, fileData, mimeType: "image/jpeg", fileSize: fileData.length }));
+  1218→      const res = await fetch("/api/drivers/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, carModel: car.model, carPlate: car.plate, carColor: car.color, carYear: car.year, licenseNumber: license.number, licenseExpiry: license.expiry, documents }) });
+  1219→      const data = await res.json();
+  1220→      if (!res.ok) throw new Error(data.error);
+  1221→      setDone(true);
+  1222→      setTimeout(() => toast({ title: lang === "ar" ? "تم التسجيل! 🎉" : "Registered! 🎉" }), 0);
+  1223→    } catch (e) { toast({ title: lang === "ar" ? "فشل التسجيل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  1224→    finally { setLoading(false); }
+  1225→  };
+  1226→
+  1227→  if (done) return (<div className="max-w-md mx-auto px-4 py-20 text-center"><div className="text-6xl mb-4">✅</div><h2 className="text-2xl font-bold text-black mb-2">{t("driverReg.success", lang)}</h2><p className="text-zinc-500 mb-6">{t("driverReg.successDesc", lang)}</p></div>);
+  1228→
+  1229→  return (
+  1230→    <div className="max-w-2xl mx-auto px-4 py-6">
+  1231→      <h1 className="text-3xl font-bold text-black mb-2">{t("driverReg.title", lang)}</h1>
+  1232→      <p className="text-zinc-500 mb-6">{t("driverReg.step", lang)} {step} {t("driverReg.of", lang)} 4</p>
+  1233→      <Progress value={(step / 4) * 100} className="mb-6" />
+  1234→      {step === 1 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.carInfo", lang)}</h2><div className="space-y-4"><div><Label>{t("driverReg.carModel", lang)}</Label><Input value={car.model} onChange={(e) => setCar({ ...car, model: e.target.value })} placeholder={t("driverReg.carModelPlaceholder", lang)} /></div><div><Label>{t("driverReg.carPlate", lang)}</Label><Input value={car.plate} onChange={(e) => setCar({ ...car, plate: e.target.value })} /></div><div><Label>{t("driverReg.carColor", lang)}</Label><Input value={car.color} onChange={(e) => setCar({ ...car, color: e.target.value })} /></div><div><Label>{t("driverReg.carYear", lang)}</Label><Input value={car.year} onChange={(e) => setCar({ ...car, year: e.target.value })} placeholder="2023" /></div></div><Button onClick={() => setStep(2)} className="w-full bg-black hover:bg-zinc-800 h-12 mt-6" disabled={!car.model || !car.plate}>{t("driverReg.next", lang)} ←</Button></Card>)}
+  1235→      {step === 2 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.licenseInfo", lang)}</h2><div className="space-y-4"><div><Label>{t("driverReg.licenseNumber", lang)}</Label><Input value={license.number} onChange={(e) => setLicense({ ...license, number: e.target.value })} /></div><div><Label>{t("driverReg.licenseExpiry", lang)}</Label><Input type="date" value={license.expiry} onChange={(e) => setLicense({ ...license, expiry: e.target.value })} /></div></div><div className="flex gap-2 mt-6"><Button variant="outline" onClick={() => setStep(1)} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={() => setStep(3)} className="flex-1 bg-black hover:bg-zinc-800 h-12" disabled={!license.number}>{t("driverReg.next", lang)} ←</Button></div></Card>)}
+  1236→      {step === 3 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.documents", lang)}</h2><div className="grid grid-cols-2 gap-4">{docTypes.map((doc) => (<div key={doc.id} className="border-2 border-dashed border-zinc-200 rounded-xl p-4 text-center"><div className="text-3xl mb-2">{doc.i}</div><div className="text-sm font-medium text-black mb-2">{doc.l}</div>{docs[doc.id] ? (<div className="relative"><img src={docs[doc.id]} alt={doc.l} className="w-full h-24 object-cover rounded-lg" /><button onClick={() => { const d = { ...docs }; delete d[doc.id]; setDocs(d); }} className="absolute top-1 left-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs">✕</button></div>) : (<label className="cursor-pointer"><input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, doc.id); }} /><span className="text-xs text-blue-600">{t("driverReg.upload", lang)}</span></label>)}</div>))}</div><div className="flex gap-2 mt-6"><Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={() => setStep(4)} className="flex-1 bg-black hover:bg-zinc-800 h-12" disabled={Object.keys(docs).length < 4}>{t("driverReg.next", lang)} ←</Button></div></Card>)}
+  1237→      {step === 4 && (<Card className="p-6 border-zinc-200"><h2 className="text-xl font-bold text-black mb-4">{t("driverReg.review", lang)}</h2><div className="space-y-3 mb-6"><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500 mb-1">{t("driverReg.carInfo", lang)}</div><div className="font-medium text-black">{car.model} - {car.plate} - {car.color} - {car.year}</div></div><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500 mb-1">{t("driverReg.licenseInfo", lang)}</div><div className="font-medium text-black">{license.number}</div></div><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500 mb-1">{t("driverReg.documents", lang)}</div><div className="font-medium text-black">{Object.keys(docs).length} {lang === "ar" ? "مستند" : "documents"}</div></div></div><div className="flex gap-2"><Button variant="outline" onClick={() => setStep(3)} className="flex-1 h-12">{t("ride.back", lang)}</Button><Button onClick={handleSubmit} disabled={loading} className="flex-1 bg-black hover:bg-zinc-800 h-12">{loading ? t("driverReg.submitting", lang) : t("driverReg.submit", lang)}</Button></div></Card>)}
+  1238→    </div>
+  1239→  );
+  1240→}
+  1241→
+  1242→// ===== BANK VIEW =====
+  1243→function BankView({ user, lang }: { user: User | null; lang: Lang }) {
+  1244→  const [accounts, setAccounts] = useState<any[]>([]);
+  1245→  const [paypalStatus, setPaypalStatus] = useState<{ connected: boolean; email?: string }>({ connected: false });
+  1246→  const [showAdd, setShowAdd] = useState(false);
+  1247→  const [showPaypal, setShowPaypal] = useState(false);
+  1248→  const [newAcc, setNewAcc] = useState({ bankName: "", accountName: "", iban: "" });
+  1249→  const [paypalEmail, setPaypalEmail] = useState("");
+  1250→  const { toast } = useToast();
+  1251→
+  1252→  const loadData = useCallback(() => {
+  1253→    if (!user) return;
+  1254→    fetch(`/api/bank-accounts?userId=${user.id}`).then((r) => r.json()).then((d) => setAccounts(Array.isArray(d) ? d : []));
+  1255→    fetch(`/api/paypal?userId=${user.id}`).then((r) => r.json()).then((d) => setPaypalStatus(d));
+  1256→  }, [user]);
+  1257→
+  1258→  useEffect(() => { loadData(); }, [loadData]);
+  1259→
+  1260→  const addAccount = async () => {
+  1261→    if (!user || !newAcc.bankName || !newAcc.iban) { toast({ title: lang === "ar" ? "بيانات ناقصة" : "Missing data", variant: "destructive" }); return; }
+  1262→    try {
+  1263→      const res = await fetch("/api/bank-accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...newAcc, userId: user.id, accountType: "bank" }) });
+  1264→      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+  1265→      setShowAdd(false); setNewAcc({ bankName: "", accountName: "", iban: "" }); loadData();
+  1266→      setTimeout(() => toast({ title: lang === "ar" ? "تمت الإضافة ✅" : "Added ✅" }), 0);
+  1267→    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  1268→  };
+  1269→
+  1270→  const connectPaypal = async () => {
+  1271→    if (!user || !paypalEmail) { toast({ title: lang === "ar" ? "أدخل بريد PayPal" : "Enter PayPal email", variant: "destructive" }); return; }
+  1272→    try {
+  1273→      const res = await fetch("/api/paypal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, paypalEmail, accountName: user.name }) });
+  1274→      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+  1275→      setShowPaypal(false); setPaypalEmail(""); loadData();
+  1276→      setTimeout(() => toast({ title: lang === "ar" ? "تم ربط PayPal ✅" : "PayPal connected ✅" }), 0);
+  1277→    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  1278→  };
+  1279→
+  1280→  return (
+  1281→    <div className="max-w-4xl mx-auto px-4 py-6">
+  1282→      <div className="flex justify-between mb-6">
+  1283→        <h1 className="text-3xl font-bold text-black">{t("bank.title", lang)}</h1>
+  1284→        <div className="flex gap-2"><Button onClick={() => setShowPaypal(true)} variant="outline" className="border-blue-200 text-blue-600">💳 PayPal</Button><Button onClick={() => setShowAdd(true)} className="bg-black hover:bg-zinc-800">{t("bank.addAccount", lang)}</Button></div>
+  1285→      </div>
+  1286→      <Card className="p-6 mb-6 border-zinc-200 bg-zinc-50"><h2 className="font-bold text-black mb-4">{t("bank.platformAccounts", lang)}</h2><div className="space-y-3">{platformBankAccounts.map((acc) => (<div key={acc.id} className="bg-white rounded-xl p-4 border border-zinc-200"><div className="flex justify-between mb-2"><span className="font-bold text-black">{acc.bankName}</span>{acc.primary && <Badge className="bg-black">{t("bank.primary", lang)}</Badge>}</div><div className="text-sm text-zinc-500">IBAN: <span className="font-mono font-bold text-black">{acc.iban}</span></div><Button variant="outline" size="sm" className="mt-2" onClick={() => { navigator.clipboard?.writeText(acc.iban.replace(/\s/g, "")); toast({ title: t("bank.copied", lang) }); }}>{t("bank.copyIban", lang)}</Button></div>))}</div></Card>
+  1287→      <h2 className="text-lg font-bold text-black mb-3">{t("bank.myAccounts", lang)}</h2>
+  1288→      {paypalStatus.connected && (<Card className="p-4 mb-3 border-blue-200 bg-blue-50"><div className="flex items-center gap-3"><span className="text-3xl">💳</span><div className="flex-1"><div className="font-bold text-black">PayPal</div><div className="text-sm text-zinc-600">{paypalStatus.email}</div></div><Badge className="bg-green-600">{t("bank.connected", lang)}</Badge></div></Card>)}
+  1289→      {accounts.map((acc) => (<Card key={acc.id} className="p-4 mb-3 border-zinc-200"><div className="flex items-center gap-3"><span className="text-3xl">🏦</span><div className="flex-1"><div className="font-bold text-black">{acc.bankName}</div><div className="text-sm text-zinc-500 font-mono">{acc.iban}</div></div>{acc.isDefault && <Badge className="bg-black">{t("bank.default", lang)}</Badge>}</div></Card>))}
+  1290→      {accounts.length === 0 && !paypalStatus.connected && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">💳</div><p className="text-zinc-500">{t("bank.noAccounts", lang)}</p></Card>)}
+  1291→      <Dialog open={showAdd} onOpenChange={setShowAdd}><DialogContent><DialogHeader><DialogTitle>{t("bank.addBank", lang)}</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div><Label>{t("bank.bankName", lang)}</Label><Select value={newAcc.bankName} onValueChange={(v) => setNewAcc({ ...newAcc, bankName: v })}><SelectTrigger><SelectValue placeholder={t("bank.chooseBank", lang)} /></SelectTrigger><SelectContent>{saudiBanks.map((b) => <SelectItem key={b.id} value={b.name}>{b.logo} {b.name}</SelectItem>)}</SelectContent></Select></div><div><Label>{t("bank.accountHolder", lang)}</Label><Input value={newAcc.accountName} onChange={(e) => setNewAcc({ ...newAcc, accountName: e.target.value })} /></div><div><Label>{t("bank.iban", lang)}</Label><Input value={newAcc.iban} onChange={(e) => setNewAcc({ ...newAcc, iban: e.target.value })} placeholder="SA00 0000 0000 0000 0000 0000" className="font-mono" /></div><Button onClick={addAccount} className="w-full bg-black hover:bg-zinc-800 h-12">{t("bank.add", lang)}</Button></div></DialogContent></Dialog>
+  1292→      <Dialog open={showPaypal} onOpenChange={setShowPaypal}><DialogContent><DialogHeader><DialogTitle>💳 {t("bank.connectPaypal", lang)}</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div><Label>{t("bank.paypalEmail", lang)}</Label><Input value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} placeholder="email@example.com" /></div><Button onClick={connectPaypal} className="w-full bg-blue-600 hover:bg-blue-700 h-12">{t("bank.connect", lang)}</Button></div></DialogContent></Dialog>
+  1293→    </div>
+  1294→  );
+  1295→}
+  1296→
+  1297→// ===== PROFILE VIEW =====
+  1298→function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; onLogout: () => void }) {
+  1299→  const [tab, setTab] = useState<"info" | "wallet" | "settings">("info");
+  1300→  const [soundEnabled, setSoundEnabled] = useState(true);
+  1301→  useEffect(() => { const stored = localStorage.getItem("uber_sound"); if (stored !== null) setSoundEnabled(stored === "true"); }, []);
+  1302→  if (!user) return null;
+  1303→
+  1304→  return (
+  1305→    <div className="max-w-4xl mx-auto px-4 py-6">
+  1306→      <Card className="p-6 mb-6 border-zinc-200"><div className="flex items-center gap-4"><Avatar className="w-20 h-20">{(user as any)?.avatar ? <img src={(user as any).avatar} alt={user.name} className="w-full h-full rounded-full object-cover" /> : <AvatarFallback className="text-2xl bg-black text-white">{(user.name || "?").charAt(0)}</AvatarFallback>}</Avatar><div className="flex-1"><h1 className="text-2xl font-bold text-black">{user.name}</h1><div className="flex items-center gap-3 mt-1"><span className="flex items-center gap-1">⭐ {user.rating}</span>{user.isAdmin && <Badge className="bg-black">{t("profile.adminBadge", lang)}</Badge>}{user.isVerified && <Badge variant="secondary">{t("profile.verified", lang)}</Badge>}</div><p className="text-sm text-zinc-500 mt-1">{user.phone}</p></div></div></Card>
+  1307→      <div className="flex gap-2 mb-6">{[{ id: "info", l: t("profile.info", lang) }, { id: "wallet", l: t("profile.wallet", lang) }, { id: "settings", l: t("profile.settings", lang) }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}</Button>))}
+  1308→      </div>
+  1309→      {tab === "info" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "المعلومات الشخصية" : "Personal Info"}</h3><div className="space-y-3">{[{ l: t("profile.fullName", lang), v: user.name }, { l: t("profile.email", lang), v: user.email }, { l: t("profile.phone", lang), v: user.phone }, { l: t("profile.city", lang), v: user.city || "-" }, { l: t("profile.region", lang), v: user.region || "-" }].map((item, i) => (<div key={i} className="flex justify-between py-3 border-b border-zinc-100"><span className="text-zinc-500">{item.l}</span><span className="font-medium text-black">{item.v}</span></div>))}</div></Card>)}
+  1310→      {tab === "wallet" && (<Card className="p-6 border-zinc-200 bg-gradient-to-br from-black to-zinc-800 text-white"><p className="text-zinc-400 text-sm">{t("profile.walletBalance", lang)}</p><p className="text-4xl font-bold mt-1">{user.walletBalance} ر.س</p><Button className="mt-4 bg-white text-black hover:bg-zinc-200">{t("profile.topup", lang)}</Button></Card>)}
+  1311→      {tab === "settings" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{t("profile.notifications", lang)}</h3><div className="space-y-3"><div className="flex items-center justify-between py-3 border-b border-zinc-100"><div><div className="font-medium text-black">🔊 {lang === "ar" ? "الأصوات التنبيهية" : "Alert Sounds"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "أصوات للطلبات والإشعارات" : "Sounds for requests and notifications"}</div></div><Switch checked={soundEnabled} onCheckedChange={(checked) => { setSoundEnabled(checked); localStorage.setItem("uber_sound", checked ? "true" : "false"); }} /></div></div></Card>)}
+  1312→      <Button onClick={onLogout} variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50 h-12 mt-6 flex items-center gap-2 justify-center"><LogOut className="w-5 h-5" />{t("nav.logout", lang)}</Button>
+  1313→    </div>
+  1314→  );
+  1315→}
+  1316→
+  1317→// ===== ADMIN VIEW =====
+  1318→function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
+  1319→  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid">("dashboard");
+  1320→  const [stats, setStats] = useState<any>(null);
+  1321→  const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
+  1322→  const [cancellations, setCancellations] = useState<any[]>([]);
+  1323→  const [unpaidTrips, setUnpaidTrips] = useState<any[]>([]);
+  1324→  const { toast } = useToast();
+  1325→
+  1326→  const loadStats = useCallback(() => { fetch("/api/admin/stats").then((r) => r.json()).then(setStats).catch(() => {}); }, []);
+  1327→  const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending").then((r) => r.json()).then((d) => setPendingDrivers(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  1328→  const loadCancellations = useCallback(() => { fetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  1329→  const loadUnpaid = useCallback(() => { if (user) fetch(`/api/admin/unpaid-trips?adminId=${user.id}`).then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, [user]);
+  1330→
+  1331→  useEffect(() => { loadStats(); }, [loadStats]);
+  1332→  useEffect(() => { if (tab === "drivers") loadDrivers(); }, [tab, loadDrivers]);
+  1333→  useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
+  1334→  useEffect(() => { if (tab === "unpaid") loadUnpaid(); }, [tab, loadUnpaid]);
+  1335→
+  1336→  const approveDriver = async (driverId: string, action: "approve" | "reject") => {
+  1337→    try { await fetch("/api/drivers/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId, adminId: user?.id, action }) }); loadDrivers(); setTimeout(() => toast({ title: action === "approve" ? "✅" : "❌" }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  1338→  };
+  1339→  const processCancellation = async (tripId: string, action: "approve" | "reject") => {
+  1340→    try { await fetch("/api/admin/cancellation-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId, adminId: user?.id, action }) }); loadCancellations(); setTimeout(() => toast({ title: action === "approve" ? "✅" : "❌" }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  1341→  };
+  1342→
+  1343→  if (!user?.isAdmin) return (<div className="max-w-md mx-auto px-4 py-20 text-center"><Shield className="w-16 h-16 mx-auto text-zinc-300 mb-4" /><h2 className="text-2xl font-bold text-black mb-2">{lang === "ar" ? "صلاحية مرفوضة" : "Access Denied"}</h2></div>);
+  1344→
+  1345→  return (
+  1346→    <div className="max-w-7xl mx-auto px-4 py-6">
+  1347→      <div className="flex items-center gap-3 mb-6"><div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div><div><h1 className="text-3xl font-bold text-black">{t("admin.title", lang)}</h1><p className="text-zinc-500">{t("admin.subtitle", lang)}</p></div></div>
+  1348→      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang) }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "cancellations", l: t("admin.cancellations", lang) }, { id: "unpaid", l: lang === "ar" ? "المبالغ غير المدفوعة" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}</Button>))}
+  1349→      </div>
+  1350→      {tab === "dashboard" && stats && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[{ l: t("admin.revenue", lang), v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600" }, { l: t("admin.totalTrips", lang), v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-xl font-bold`}>{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}</div>)}
+  1351→      {tab === "drivers" && (<div className="space-y-3">{pendingDrivers.map((d) => (<Card key={d.id} className="p-4 border-zinc-200"><div className="flex items-center gap-3 mb-3"><Avatar className="w-12 h-12"><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar><div className="flex-1"><div className="font-bold text-black">{d.user?.name}</div><div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate}</div></div><Badge variant="secondary">⏳</Badge></div><div className="flex gap-2"><Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approve", lang)}</Button><Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectBtn", lang)}</Button></div></Card>))}{pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}</div>)}
+  1352→      {tab === "cancellations" && (<div className="space-y-3">{cancellations.map((c) => (<Card key={c.id} className="p-4 border-zinc-200"><div className="mb-3"><div className="font-bold text-black">{c.fromAddress} ← {c.toAddress}</div><div className="text-sm text-zinc-500">{c.cancellationReason}</div></div><div className="flex gap-2"><Button onClick={() => processCancellation(c.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approveCancel", lang)}</Button><Button onClick={() => processCancellation(c.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectCancel", lang)}</Button></div></Card>))}{cancellations.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noCancellations", lang)}</Card>}</div>)}
+  1353→      {tab === "unpaid" && (<div className="space-y-3">{unpaidTrips.map((trip) => (<Card key={trip.id} className="p-4 border-zinc-200 border-red-200"><div className="mb-2"><div className="font-bold text-black">{trip.user?.name} - {trip.fromAddress} ← {trip.toAddress}</div><div className="text-sm text-red-600">⚠️ {lang === "ar" ? "غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div></div></Card>))}{unpaidTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد مبالغ غير مدفوعة" : "No unpaid amounts"}</Card>}</div>)}
+  1354→      {tab === "trips" && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "قائمة الرحلات" : "Trips list"}</Card>}
+  1355→    </div>
+  1356→  );
+  1357→}
+  1358→
+  1359→// ===== AUTH DIALOG =====
+  1360→function AuthDialog({ open, onOpenChange, onSuccess, lang }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: (u: User) => void; lang: Lang }) {
+  1361→  const [tab, setTab] = useState<"login" | "register">("login");
+  1362→  const [loading, setLoading] = useState(false);
+  1363→  const [login, setLogin] = useState({ identifier: "", password: "" });
+  1364→  const [reg, setReg] = useState({ name: "", email: "", phone: "", password: "", city: "الرياض", region: "الرياض" });
+  1365→  const [showPwd, setShowPwd] = useState(false);
+  1366→  const { toast } = useToast();
+  1367→
+  1368→  const handleLogin = async () => {
+  1369→    if (!login.identifier || !login.password) { toast({ title: t("auth.enterCredentials", lang), variant: "destructive" }); return; }
+  1370→    setLoading(true);
+  1371→    try {
+  1372→      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(login) });
+  1373→      const data = await res.json();
+  1374→      if (!res.ok) throw new Error(data.error);
+  1375→      if (data.isBlocked) { toast({ title: t("auth.blocked", lang), description: data.blockReason, variant: "destructive" }); return; }
+  1376→      onSuccess(data); setLogin({ identifier: "", password: "" });
+  1377→    } catch (e) { toast({ title: t("auth.loginFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  1378→    finally { setLoading(false); }
+  1379→  };
+  1380→
+  1381→  const handleRegister = async () => {
+  1382→    if (!reg.name || !reg.email || !reg.phone || !reg.password) { toast({ title: t("auth.allFieldsRequired", lang), variant: "destructive" }); return; }
+  1383→    setLoading(true);
+  1384→    try {
+  1385→      const res = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reg) });
+  1386→      const data = await res.json();
+  1387→      if (!res.ok) throw new Error(data.error);
+  1388→      onSuccess(data); setReg({ name: "", email: "", phone: "", password: "", city: "الرياض", region: "الرياض" });
+  1389→    } catch (e) { toast({ title: t("auth.registerFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  1390→    finally { setLoading(false); }
+  1391→  };
+  1392→
+  1393→  const handleGoogleLogin = async () => {
+  1394→    const email = prompt(lang === "ar" ? "أدخل بريد Google:" : "Enter Google email:", "user@gmail.com");
+  1395→    if (!email) return;
+  1396→    setLoading(true);
+  1397→    try {
+  1398→      const res = await fetch("/api/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ googleId: `google_${Date.now()}`, email, name: email.split("@")[0], picture: null }) });
+  1399→      const data = await res.json();
+  1400→      if (!res.ok) throw new Error(data.error);
+  1401→      onSuccess(data);
+  1402→    } catch (e) { toast({ title: t("auth.loginFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+  1403→    finally { setLoading(false); }
+  1404→  };
+  1405→
+  1406→  return (
+  1407→    <Dialog open={open} onOpenChange={onOpenChange}>
+  1408→      <DialogContent className="sm:max-w-md">
+  1409→        <DialogHeader><DialogTitle className="text-xl font-bold">{t("auth.welcome", lang)}</DialogTitle><DialogDescription>{t("auth.welcomeDesc", lang)}</DialogDescription></DialogHeader>
+  1410→        <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-2 border border-zinc-300 rounded-lg h-12 hover:bg-zinc-50 transition-colors">
+  1411→          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+  1412→          <span className="font-medium text-black">{t("auth.loginGoogle", lang)}</span>
+  1413→        </button>
+  1414→        <div className="flex items-center gap-3"><div className="flex-1 h-px bg-zinc-200"></div><span className="text-xs text-zinc-400">{t("auth.or", lang)}</span><div className="flex-1 h-px bg-zinc-200"></div></div>
+  1415→        <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
+  1416→          <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="login">{t("auth.login", lang)}</TabsTrigger><TabsTrigger value="register">{t("auth.register", lang)}</TabsTrigger></TabsList>
+  1417→          <TabsContent value="login" className="space-y-3 mt-4">
+  1418→            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder="grouthhacker@gmail.com" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
+  1419→            <div><Label>{t("auth.password", lang)}</Label><div className="relative"><Input type={showPwd ? "text" : "password"} value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} placeholder="••••••••" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /><button onClick={() => setShowPwd(!showPwd)} className="absolute left-3 top-1/2 -translate-y-1/2">{showPwd ? "🙈" : "👁️"}</button></div></div>
+  1420→            <Button onClick={handleLogin} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.loginBtn", lang)}</Button>
+  1421→            <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-600 text-center"><p className="font-bold mb-1">{t("auth.demoAccounts", lang)}</p><p>grouthhacker@gmail.com / Admin@2026</p><p>saad@example.com / 123456</p><p>ahmed@driver.com / 123456</p></div>
+  1422→          </TabsContent>
+  1423→          <TabsContent value="register" className="space-y-3 mt-4">
+  1424→            <div><Label>{t("auth.name", lang)}</Label><Input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} /></div>
+  1425→            <div><Label>{t("auth.email", lang)}</Label><Input value={reg.email} onChange={(e) => setReg({ ...reg, email: e.target.value })} /></div>
+  1426→            <div><Label>{t("auth.phone", lang)}</Label><Input value={reg.phone} onChange={(e) => setReg({ ...reg, phone: e.target.value })} placeholder="05xxxxxxxx" /></div>
+  1427→            <div><Label>{t("auth.password", lang)}</Label><Input type="password" value={reg.password} onChange={(e) => setReg({ ...reg, password: e.target.value })} /></div>
+  1428→            <div className="grid grid-cols-2 gap-2"><div><Label>{t("profile.region", lang)}</Label><Select value={reg.region} onValueChange={(v) => setReg({ ...reg, region: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{saudiRegions.map((r) => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}</SelectContent></Select></div><div><Label>{t("profile.city", lang)}</Label><Select value={reg.city} onValueChange={(v) => setReg({ ...reg, city: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{saudiRegions.find((r) => r.name === reg.region)?.cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div></div>
+  1429→            <Button onClick={handleRegister} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.registerBtn", lang)}</Button>
+  1430→          </TabsContent>
+  1431→        </Tabs>
+  1432→      </DialogContent>
+  1433→    </Dialog>
+  1434→  );
+  1435→}
+  1436→

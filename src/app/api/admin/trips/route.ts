@@ -40,11 +40,13 @@ export async function GET(request: NextRequest) {
     });
 
     const driverIds = [...new Set(tripsRaw.map((t) => t.driverId).filter(Boolean) as string[])];
+    // Trip.driverId stores the driver's USER id (not Driver record id)
     const drivers = driverIds.length
       ? await db.driver.findMany({
-          where: { id: { in: driverIds } },
+          where: { userId: { in: driverIds } },
           select: {
             id: true,
+            userId: true,
             carModel: true,
             carPlate: true,
             carColor: true,
@@ -52,7 +54,8 @@ export async function GET(request: NextRequest) {
           },
         })
       : [];
-    const driverMap = new Map(drivers.map((d) => [d.id, d]));
+    // Map by userId so we can match Trip.driverId (which is the user id)
+    const driverMap = new Map(drivers.map((d) => [d.userId, d]));
     const trips = tripsRaw.map((t) => ({
       ...t,
       driver: t.driverId ? driverMap.get(t.driverId) ?? null : null,

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (userId) where.userId = userId;
     if (driverId) where.driverId = driverId;
     if (activeOnly) {
-      where.status = { in: ["pending", "accepted", "driver_arrived", "ongoing"] };
+      where.status = { in: ["pending", "accepted", "driver_arrived", "ongoing", "completed"] };
     }
 
     // Trip schema has no driver relation; fetch drivers manually

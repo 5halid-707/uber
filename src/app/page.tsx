@@ -601,6 +601,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const [lateFeeData, setLateFeeData] = useState({ waitingMinutes: 0, lateFee: 0, freeMinutesLeft: 3 });
   const [elapsed, setElapsed] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
+  const [complaintOpen, setComplaintOpen] = useState(false);
   const [riderLoc, setRiderLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
@@ -634,13 +635,23 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
             if (trip.status === "completed") safePlaySound(playTripCompletedSound);
             prevStatus.current = trip.status;
           }
-          if (trip.status === "completed") { setStep("search"); setTimeout(() => toast({ title: lang === "ar" ? "وصلت! 🎉" : "Arrived! 🎉" }), 0); }
+          if (trip.status === "completed") {
+            const baseAmount = trip.finalPrice || trip.price || 0;
+            const finalAmount = baseAmount + (lateFeeData?.lateFee || 0);
+            setStep("search");
+            setActiveTrip(null);
+            prevStatus.current = "";
+            setTimeout(() => toast({
+              title: lang === "ar" ? "اكتملت الرحلة! 🎉" : "Trip completed! 🎉",
+              description: `${lang === "ar" ? "السعر النهائي" : "Final price"}: ${finalAmount} ر.س${lateFeeData?.lateFee ? ` (${lang === "ar" ? "شامل رسوم انتظار" : "incl. late fee"} ${lateFeeData.lateFee})` : ""}`,
+            }), 0);
+          }
         }
       } catch {}
     };
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
-  }, [step, activeTrip, user, toast, lang]);
+  }, [step, activeTrip, user, toast, lang, lateFeeData]);
 
   // Send rider GPS location when tracking
   useEffect(() => {
@@ -744,7 +755,12 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
             <Card className="p-6 border-zinc-200">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-black">{t("ride.driverInfo", lang)}</h2>
-                {activeTrip.driverId && <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>}
+                {activeTrip.driverId && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setComplaintOpen(true)} className="border-red-200 text-red-600 hover:bg-red-50"><AlertTriangle className="w-4 h-4 ml-1" />{lang === "ar" ? "شكوى" : "Complaint"}</Button>
+                    <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+                  </div>
+                )}
               </div>
               {status === "pending" && (<div className="text-center py-8"><div className="animate-spin w-12 h-12 border-4 border-zinc-200 border-t-black rounded-full mx-auto mb-4"></div><p className="font-bold text-black">{t("ride.searching", lang)}</p><p className="text-sm text-zinc-500 mt-1">{t("ride.searchingDesc", lang)}</p></div>)}
               {status === "accepted" && (<div className="space-y-3"><div className="bg-green-50 p-3 rounded-xl text-center"><p className="font-bold text-green-700">✅ {t("ride.driverAccepted", lang)}</p><p className="text-sm text-green-600">{t("ride.driverOnWay", lang)}</p></div></div>)}
@@ -762,6 +778,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
           </div>
         </div>
         {chatOpen && activeTrip.driverId && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.driverId} otherName={activeTrip.driver?.name || "Driver"} lang={lang} otherAvatar={activeTrip.driver?.user?.avatar || null} />}
+        {complaintOpen && user && activeTrip.driverId && <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} fromUserId={user.id} againstUserId={activeTrip.driverId} againstName={activeTrip.driver?.user?.name || activeTrip.driver?.name || (lang === "ar" ? "السائق" : "Driver")} tripId={activeTrip.id} lang={lang} />}
       </div>
     );
   }
@@ -919,6 +936,80 @@ function ChatDialog({ open, onOpenChange, tripId, currentUserId, otherUserId, ot
   );
 }
 
+// ===== COMPLAINT DIALOG =====
+function ComplaintDialog({ open, onOpenChange, fromUserId, againstUserId, againstName, tripId, lang }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  fromUserId: string;
+  againstUserId?: string;
+  againstName?: string;
+  tripId?: string;
+  lang: Lang;
+}) {
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const subjects = lang === "ar" ? [
+    "سلوك سيئ", "تأخر غير مبرر", "إلغاء متكرر", "عدم دفع الأجرة",
+    "مخالفة قوانين", "معلومات خاطئة", "أخرى"
+  ] : [
+    "Bad behavior", "Unjustified delay", "Frequent cancellation", "Non-payment",
+    "Rule violation", "False information", "Other"
+  ];
+
+  const submit = async () => {
+    if (!subject || !description.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/complaints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromUserId, againstUserId, subject, description, tripId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: lang === "ar" ? "تم إرسال الشكوى ✅" : "Complaint sent ✅" });
+      setSubject(""); setDescription("");
+      onOpenChange(false);
+    } catch (e) {
+      toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" });
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{lang === "ar" ? "تقديم شكوى" : "File a complaint"}</DialogTitle>
+          <DialogDescription>
+            {againstName ? (lang === "ar" ? `ضد: ${againstName}` : `Against: ${againstName}`) : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div>
+            <Label>{lang === "ar" ? "موضوع الشكوى" : "Subject"}</Label>
+            <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger><SelectValue placeholder={lang === "ar" ? "اختر الموضوع" : "Select subject"} /></SelectTrigger>
+              <SelectContent>
+                {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>{lang === "ar" ? "التفاصيل" : "Description"}</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder={lang === "ar" ? "اكتب تفاصيل الشكوى..." : "Describe your complaint..."} />
+          </div>
+          <Button onClick={submit} disabled={submitting || !subject || !description.trim()} className="w-full bg-red-600 hover:bg-red-700 h-12">
+            {submitting ? (lang === "ar" ? "جارٍ الإرسال..." : "Sending...") : (lang === "ar" ? "إرسال الشكوى" : "Submit complaint")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ===== TRIPS VIEW =====
 function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -977,6 +1068,7 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [availableTrips, setAvailableTrips] = useState<Trip[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
+  const [complaintOpen, setComplaintOpen] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState<{ open: boolean; tripId?: string; finalPrice?: number }>({ open: false });
   const [cashReceived, setCashReceived] = useState("");
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -1133,7 +1225,10 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
         <Card className="p-6 mb-6 border-2 border-blue-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-black text-lg">{t("driver.activeTrip", lang)}</h3>
-            <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-1" />{lang === "ar" ? "محادثة" : "Chat"}</Button>
+              <Button size="sm" variant="outline" onClick={() => setComplaintOpen(true)} className="border-red-200 text-red-600 hover:bg-red-50"><AlertTriangle className="w-4 h-4 ml-1" />{lang === "ar" ? "شكوى" : "Complaint"}</Button>
+            </div>
           </div>
           <div className="bg-zinc-50 p-3 rounded-xl mb-4">
             <div className="flex items-center gap-2 mb-2"><span className="text-green-500">●</span><span className="text-black">{activeTrip.fromAddress}</span></div>
@@ -1175,6 +1270,8 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
       {!online && !activeTrip && (<Card className="p-12 border-zinc-200 text-center"><div className="text-6xl mb-4">😴</div><h3 className="text-xl font-bold text-black mb-2">{t("driver.offlineMsg", lang)}</h3><p className="text-zinc-500 mb-6">{t("driver.offlineDescMsg", lang)}</p><Button onClick={() => toggleOnline(true)} className="bg-black hover:bg-zinc-800 h-12 px-8">{t("driver.startWork", lang)}</Button></Card>)}
 
       {chatOpen && activeTrip && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.userId} otherName={activeTrip.user?.name || "Rider"} lang={lang} otherAvatar={activeTrip.user?.avatar || null} />}
+
+      {complaintOpen && user && activeTrip && <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} fromUserId={user.id} againstUserId={activeTrip.userId} againstName={activeTrip.user?.name || "Rider"} tripId={activeTrip.id} lang={lang} />}
 
       <Dialog open={paymentDialog.open} onOpenChange={(o) => setPaymentDialog({ ...paymentDialog, open: o })}>
         <DialogContent>
@@ -1298,6 +1395,7 @@ function BankView({ user, lang }: { user: User | null; lang: Lang }) {
 function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; onLogout: () => void }) {
   const [tab, setTab] = useState<"info" | "wallet" | "settings">("info");
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [complaintOpen, setComplaintOpen] = useState(false);
   useEffect(() => { const stored = localStorage.getItem("uber_sound"); if (stored !== null) setSoundEnabled(stored === "true"); }, []);
   if (!user) return null;
 
@@ -1309,14 +1407,27 @@ function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; 
       {tab === "info" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "المعلومات الشخصية" : "Personal Info"}</h3><div className="space-y-3">{[{ l: t("profile.fullName", lang), v: user.name }, { l: t("profile.email", lang), v: user.email }, { l: t("profile.phone", lang), v: user.phone }, { l: t("profile.city", lang), v: user.city || "-" }, { l: t("profile.region", lang), v: user.region || "-" }].map((item, i) => (<div key={i} className="flex justify-between py-3 border-b border-zinc-100"><span className="text-zinc-500">{item.l}</span><span className="font-medium text-black">{item.v}</span></div>))}</div></Card>)}
       {tab === "wallet" && (<Card className="p-6 border-zinc-200 bg-gradient-to-br from-black to-zinc-800 text-white"><p className="text-zinc-400 text-sm">{t("profile.walletBalance", lang)}</p><p className="text-4xl font-bold mt-1">{user.walletBalance} ر.س</p><Button className="mt-4 bg-white text-black hover:bg-zinc-200">{t("profile.topup", lang)}</Button></Card>)}
       {tab === "settings" && (<Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{t("profile.notifications", lang)}</h3><div className="space-y-3"><div className="flex items-center justify-between py-3 border-b border-zinc-100"><div><div className="font-medium text-black">🔊 {lang === "ar" ? "الأصوات التنبيهية" : "Alert Sounds"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "أصوات للطلبات والإشعارات" : "Sounds for requests and notifications"}</div></div><Switch checked={soundEnabled} onCheckedChange={(checked) => { setSoundEnabled(checked); localStorage.setItem("uber_sound", checked ? "true" : "false"); }} /></div></div></Card>)}
-      <Button onClick={onLogout} variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50 h-12 mt-6 flex items-center gap-2 justify-center"><LogOut className="w-5 h-5" />{t("nav.logout", lang)}</Button>
+      <Button onClick={() => setComplaintOpen(true)} variant="outline" className="w-full border-orange-200 text-orange-600 hover:bg-orange-50 h-12 mt-4 flex items-center gap-2 justify-center"><AlertTriangle className="w-5 h-5" />{lang === "ar" ? "تقديم شكوى" : "File a complaint"}</Button>
+
+      <Button onClick={onLogout} variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50 h-12 mt-3 flex items-center gap-2 justify-center"><LogOut className="w-5 h-5" />{t("nav.logout", lang)}</Button>
+
+      {complaintOpen && user && <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} fromUserId={user.id} lang={lang} />}
     </div>
   );
 }
 
 // ===== ADMIN VIEW =====
 function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
-  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid" | "complaints">("dashboard");
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [allTrips, setAllTrips] = useState<any[]>([]);
+  const [tripFilter, setTripFilter] = useState("all");
+
+  const loadComplaints = useCallback(() => { if (user) fetch(`/api/complaints?adminId=${user.id}`).then(r => r.json()).then(d => setComplaints(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
+  const loadAllTrips = useCallback(() => { if (user) fetch(`/api/admin/trips?adminId=${user.id}&limit=100`).then(r => r.json()).then(d => setAllTrips(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
+
+  useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
+  useEffect(() => { if (tab === "trips") loadAllTrips(); }, [tab, loadAllTrips]);
   const [stats, setStats] = useState<any>(null);
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [cancellations, setCancellations] = useState<any[]>([]);
@@ -1345,13 +1456,15 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center gap-3 mb-6"><div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div><div><h1 className="text-3xl font-bold text-black">{t("admin.title", lang)}</h1><p className="text-zinc-500">{t("admin.subtitle", lang)}</p></div></div>
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang) }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "cancellations", l: t("admin.cancellations", lang) }, { id: "unpaid", l: lang === "ar" ? "المبالغ غير المدفوعة" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}</Button>))}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang) }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints" }, { id: "cancellations", l: t("admin.cancellations", lang) }, { id: "unpaid", l: lang === "ar" ? "المبالغ غير المدفوعة" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}>{tb.l}{tb.id === "complaints" && complaints.length > 0 && <span className="mr-1 bg-red-600 text-white text-xs px-1.5 rounded-full">{complaints.length}</span>}</Button>))}
       </div>
       {tab === "dashboard" && stats && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[{ l: t("admin.revenue", lang), v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600" }, { l: t("admin.totalTrips", lang), v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-xl font-bold`}>{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}</div>)}
       {tab === "drivers" && (<div className="space-y-3">{pendingDrivers.map((d) => (<Card key={d.id} className="p-4 border-zinc-200"><div className="flex items-center gap-3 mb-3"><Avatar className="w-12 h-12"><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar><div className="flex-1"><div className="font-bold text-black">{d.user?.name}</div><div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate}</div></div><Badge variant="secondary">⏳</Badge></div><div className="flex gap-2"><Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approve", lang)}</Button><Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectBtn", lang)}</Button></div></Card>))}{pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}</div>)}
       {tab === "cancellations" && (<div className="space-y-3">{cancellations.map((c) => (<Card key={c.id} className="p-4 border-zinc-200"><div className="mb-3"><div className="font-bold text-black">{c.fromAddress} ← {c.toAddress}</div><div className="text-sm text-zinc-500">{c.cancellationReason}</div></div><div className="flex gap-2"><Button onClick={() => processCancellation(c.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approveCancel", lang)}</Button><Button onClick={() => processCancellation(c.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectCancel", lang)}</Button></div></Card>))}{cancellations.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noCancellations", lang)}</Card>}</div>)}
       {tab === "unpaid" && (<div className="space-y-3">{unpaidTrips.map((trip) => (<Card key={trip.id} className="p-4 border-zinc-200 border-red-200"><div className="mb-2"><div className="font-bold text-black">{trip.user?.name} - {trip.fromAddress} ← {trip.toAddress}</div><div className="text-sm text-red-600">⚠️ {lang === "ar" ? "غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div></div></Card>))}{unpaidTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد مبالغ غير مدفوعة" : "No unpaid amounts"}</Card>}</div>)}
-      {tab === "trips" && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "قائمة الرحلات" : "Trips list"}</Card>}
+      {tab === "trips" && (<div><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{["all","pending","accepted","driver_arrived","ongoing","completed","cancelled"].map(s => <Button key={s} size="sm" variant={tripFilter === s ? "default" : "outline"} onClick={() => setTripFilter(s)} className={tripFilter === s ? "bg-black hover:bg-zinc-800" : ""}>{s === "all" ? (lang === "ar" ? "الكل" : "All") : s}</Button>)}</div><div className="space-y-2 max-h-[70vh] overflow-y-auto">{allTrips.filter(t => tripFilter === "all" || t.status === tripFilter).map(trip => (<Card key={trip.id} className="p-3 border-zinc-200"><div className="flex items-center justify-between mb-1"><div className="font-bold text-black text-sm">{trip.user?.name || "?"} → {trip.driver?.name || (lang === "ar" ? "بدون سائق" : "No driver")}</div><Badge variant={trip.status === "completed" ? "default" : trip.status === "cancelled" ? "destructive" : "secondary"} className={trip.status === "completed" ? "bg-green-600" : ""}>{trip.status}</Badge></div><div className="text-xs text-zinc-500">{trip.fromAddress} ← {trip.toAddress}</div><div className="flex justify-between mt-1 text-xs"><span className="text-zinc-400">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span><span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span></div></Card>))}{allTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد رحلات" : "No trips"}</Card>}</div></div>)}
+
+      {tab === "complaints" && (<div className="space-y-3 max-h-[70vh] overflow-y-auto">{complaints.map((c, i) => (<Card key={c.id || i} className="p-4 border-zinc-200 border-red-100"><div className="flex items-start justify-between mb-2"><Badge className="bg-red-600">🚨 {lang === "ar" ? "شكوى" : "Complaint"}</Badge><span className="text-xs text-zinc-400">{new Date(c.createdAt).toLocaleString("ar-SA")}</span></div><div className="font-bold text-black text-sm mb-1">{c.title}</div><div className="text-sm text-zinc-600 whitespace-pre-line">{c.message}</div></Card>))}{complaints.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد شكاوى" : "No complaints"}</Card>}</div>)}
     </div>
   );
 }

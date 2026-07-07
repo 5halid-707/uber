@@ -1,0 +1,402 @@
+   400→              <p className="text-lg text-zinc-500 mb-6">{lang === "ar" ? "حقِّق الأرباح بما يناسب مواعيدك من خلال خدمات التوصيل أو إجراء المشاوير، أو الاثنين." : "Earn on your schedule with deliveries or rides, or both."}</p>
+   401→              <div className="space-y-2 mb-6">
+   402→                <p className="text-sm text-zinc-600">{lang === "ar" ? "أرباح تصل إلى 7,400 ر.س شهرياً" : "Earn up to 7,400 SAR/month"}</p>
+   403→                <p className="text-sm text-zinc-600">{lang === "ar" ? "مرونة كاملة في المواعيد" : "Complete schedule flexibility"}</p>
+   404→                <p className="text-sm text-zinc-600">{lang === "ar" ? "دفعات أسبوعية سريعة" : "Fast weekly payouts"}</p>
+   405→              </div>
+   406→              <Button size="lg" onClick={() => navigate("driver-register")} className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg font-bold animate-pulse">{lang === "ar" ? "ابدأ الآن" : "Get started"}</Button>
+   407→            </div>
+   408→          </div>
+   409→        </div>
+   410→      </section>
+   411→
+   412→      {/* ===== UBER FOR BUSINESS ===== */}
+   413→      <section className="py-16">
+   414→        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   415→          <div className="grid md:grid-cols-2 gap-12 items-center">
+   416→            <div>
+   417→              <Badge variant="secondary" className="mb-4">{lang === "ar" ? "أوبر للأعمال" : "Uber for Business"}</Badge>
+   418→              <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">{lang === "ar" ? "أوبر في ثوبها الجديد لقطاع الأعمال" : "Uber for Business"}</h2>
+   419→              <p className="text-lg text-zinc-500 mb-6">{lang === "ar" ? "منصة أوبر للأعمال لإدارة الرحلات العالمية وطلبات الوجبات وخدمات إرسال الطرود المحلية للشركات من أي حجم." : "A platform for managing global rides, meals, and local package delivery for companies of any size."}</p>
+   420→              <div className="flex gap-3">
+   421→                <Button size="lg" className="bg-black hover:bg-zinc-800 h-14 px-8 text-lg">{lang === "ar" ? "ابدأ الآن" : "Get started"}</Button>
+   422→                <Button size="lg" variant="outline" className="h-14 px-8 text-lg border-zinc-300">{lang === "ar" ? "اطَّلع على حلولنا" : "See solutions"}</Button>
+   423→              </div>
+   424→            </div>
+   425→            <div className="aspect-video bg-gradient-to-br from-blue-700 to-blue-900 rounded-3xl flex items-center justify-center">
+   426→              <span className="text-9xl">🏢</span>
+   427→            </div>
+   428→          </div>
+   429→        </div>
+   430→      </section>
+   431→
+   432→      {/* ===== CITY CENTER (Explore) ===== */}
+   433→      <section className="py-16 bg-black text-white">
+   434→        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
+   435→          <h2 className="text-3xl md:text-5xl font-bold mb-4">{lang === "ar" ? "كل ما تحتاجه لتشجع مع مدينتك" : "Everything you need to cheer in your city"}</h2>
+   436→          <p className="text-lg text-zinc-400 mb-8 max-w-2xl mx-auto">{lang === "ar" ? "في هذا الموسم، سنوصلك إلى المباراة أو نجلب لك ما تشتهيه حتى باب منزلك—لأن الشيء الوحيد الذي يجب أن تركز عليه هو النتيجة." : "This season, we'll get you to the match or bring what you crave to your door."}</p>
+   437→          <Button size="lg" className="bg-white text-black hover:bg-zinc-200 h-14 px-8 text-lg">{lang === "ar" ? "ادخل في اللعبة" : "Get in the game"}</Button>
+   438→        </div>
+   439→      </section>
+   440→
+   441→      {/* ===== SERVICES GRID ===== */}
+   442→      <section className="py-16 md:py-24">
+   443→        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   444→          <div className="text-center mb-12">
+   445→            <Badge variant="secondary" className="mb-3">{lang === "ar" ? "خدماتنا" : "Our Services"}</Badge>
+   446→            <h2 className="text-3xl md:text-5xl font-bold text-black">{t("home.servicesTitle", lang)}</h2>
+   447→            <p className="text-zinc-500 mt-3 max-w-2xl mx-auto">{t("home.servicesDesc", lang)}</p>
+   448→          </div>
+   449→          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+   450→            {services.map((s) => (
+   451→              <Card key={s.id} className="p-6 hover:shadow-xl transition-all cursor-pointer border-zinc-200 hover:border-black group" onClick={() => navigate("ride")}>
+   452→                <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{s.emoji}</div>
+   453→                <h3 className="font-bold text-lg text-black">{s.name}</h3>
+   454→                <p className="text-sm text-zinc-500 mt-1">{s.desc}</p>
+   455→                <div className="flex items-center gap-1 mt-3 text-sm font-medium text-black">{t("home.startNow", lang)} ←</div>
+   456→              </Card>
+   457→            ))}
+   458→          </div>
+   459→        </div>
+   460→      </section>
+   461→
+   462→      {/* ===== COVERAGE ===== */}
+   463→      <section className="py-16 bg-zinc-50">
+   464→        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   465→          <div className="text-center mb-12">
+   466→            <Badge variant="secondary" className="mb-3">{lang === "ar" ? "تغطيتنا" : "Coverage"}</Badge>
+   467→            <h2 className="text-3xl md:text-5xl font-bold text-black">{t("home.coverageTitle", lang)}</h2>
+   468→          </div>
+   469→          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+   470→            {saudiRegions.map((r) => (
+   471→              <Card key={r.id} className="p-4 text-center border-zinc-200 hover:border-black">
+   472→                <div className="text-2xl mb-2">📍</div>
+   473→                <h3 className="font-bold text-sm text-black">{lang === "ar" ? r.name : r.name}</h3>
+   474→                <p className="text-xs text-zinc-500">{r.cities.length} {t("home.cities", lang)}</p>
+   475→              </Card>
+   476→            ))}
+   477→          </div>
+   478→        </div>
+   479→      </section>
+   480→
+   481→      {/* ===== APP DOWNLOAD (QR codes) ===== */}
+   482→      <section className="py-16 bg-black text-white">
+   483→        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+   484→          <div className="grid md:grid-cols-2 gap-12 items-center">
+   485→            <div>
+   486→              <h2 className="text-3xl md:text-4xl font-bold mb-4">{lang === "ar" ? "الأمر أسهل داخل التطبيقات" : "Easier in the apps"}</h2>
+   487→              <p className="text-zinc-400 mb-6">{lang === "ar" ? "نزِّل تطبيق أوبر للركاب وتطبيق الشريك للسائقين" : "Download the Uber app for riders and the Partner app for drivers"}</p>
+   488→              <div className="space-y-3">
+   489→                <div className="flex items-center gap-4 bg-zinc-900 p-4 rounded-xl">
+   490→                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shrink-0">
+   491→                    <span className="text-3xl">📱</span>
+   492→                  </div>
+   493→                  <div>
+   494→                    <p className="font-bold">{lang === "ar" ? "نزِّل تطبيق أوبر" : "Download Uber app"}</p>
+   495→                    <p className="text-sm text-zinc-400">{lang === "ar" ? "امسح الرمز ضوئياً للتنزيل" : "Scan the QR code"}</p>
+   496→                  </div>
+   497→                </div>
+   498→                <div className="flex items-center gap-4 bg-zinc-900 p-4 rounded-xl">
+   499→                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shrink-0">
+   500→                    <span className="text-3xl">🚗</span>
+   501→                  </div>
+   502→                  <div>
+   503→                    <p className="font-bold">{lang === "ar" ? "نزِّل تطبيق الشريك" : "Download Partner app"}</p>
+   504→                    <p className="text-sm text-zinc-400">{lang === "ar" ? "امسح الرمز ضوئياً للتنزيل" : "Scan the QR code"}</p>
+   505→                  </div>
+   506→                </div>
+   507→              </div>
+   508→            </div>
+   509→            <div className="flex justify-center gap-8">
+   510→              <div className="text-center">
+   511→                <div className="w-40 h-40 bg-white rounded-2xl p-3 mb-3">
+   512→                  {/* QR code placeholder */}
+   513→                  <div className="w-full h-full bg-black rounded grid grid-cols-8 grid-rows-8 gap-px p-2">
+   514→                    {Array.from({ length: 64 }).map((_, i) => (
+   515→                      <div key={i} className={`${Math.random() > 0.5 ? "bg-white" : "bg-black"} rounded-sm`} />
+   516→                    ))}
+   517→                  </div>
+   518→                </div>
+   519→                <p className="text-sm text-zinc-400">{lang === "ar" ? "أندرويد و iOS" : "Android & iOS"}</p>
+   520→              </div>
+   521→            </div>
+   522→          </div>
+   523→        </div>
+   524→      </section>
+   525→
+   526→      {/* ===== CTA ===== */}
+   527→      <section className="py-16 bg-white">
+   528→        <div className="max-w-4xl mx-auto px-4 text-center">
+   529→          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-black">{t("home.ctaTitle", lang)}</h2>
+   530→          <p className="text-zinc-500 mb-8">{t("home.ctaDesc", lang)}</p>
+   531→          <div className="flex justify-center gap-3 flex-wrap">
+   532→            <Button size="lg" onClick={() => navigate("ride")} className="bg-black hover:bg-zinc-800 h-14 px-8 text-lg">{t("home.bookNow", lang)}</Button>
+   533→            <Button size="lg" onClick={() => navigate("driver-register")} className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg font-bold">{t("home.beDriver", lang)}</Button>
+   534→          </div>
+   535→        </div>
+   536→      </section>
+   537→
+   538→      {/* Reserve Dialog */}
+   539→      <Dialog open={showReserve} onOpenChange={setShowReserve}>
+   540→        <DialogContent>
+   541→          <DialogHeader><DialogTitle>{lang === "ar" ? "جدولة رحلة مسبقاً" : "Reserve a ride"}</DialogTitle></DialogHeader>
+   542→          <div className="space-y-4 py-4">
+   543→            <div><Label>{lang === "ar" ? "التاريخ" : "Date"}</Label><Input type="date" value={reserveDate} onChange={(e) => setReserveDate(e.target.value)} className="h-12" /></div>
+   544→            <div><Label>{lang === "ar" ? "الوقت" : "Time"}</Label><Input type="time" value={reserveTime} onChange={(e) => setReserveTime(e.target.value)} className="h-12" /></div>
+   545→            <Button onClick={() => { setShowReserve(false); navigate("ride"); }} className="w-full bg-black hover:bg-zinc-800 h-12" disabled={!reserveDate || !reserveTime}>{lang === "ar" ? "متابعة" : "Continue"}</Button>
+   546→          </div>
+   547→        </DialogContent>
+   548→      </Dialog>
+   549→    </div>
+   550→  );
+   551→}
+   552→
+   553→// ===== LIVE MAP COMPONENT =====
+   554→function LiveMap({ riderLoc, driverLoc, from, to, status }: {
+   555→  riderLoc?: { lat: number; lng: number } | null;
+   556→  driverLoc?: { lat: number; lng: number } | null;
+   557→  from?: string;
+   558→  to?: string;
+   559→  status?: string;
+   560→}) {
+   561→  // Build Google Maps embed URL with markers
+   562→  let mapUrl = "";
+   563→  if (driverLoc && riderLoc) {
+   564→    // Show both markers with route
+   565→    const midLat = ((driverLoc.lat + riderLoc.lat) / 2).toFixed(6);
+   566→    const midLng = ((driverLoc.lng + riderLoc.lng) / 2).toFixed(6);
+   567→    mapUrl = `https://www.google.com/maps?q=${midLat},${midLng}&z=14&output=embed`;
+   568→  } else if (riderLoc) {
+   569→    mapUrl = `https://www.google.com/maps?q=${riderLoc.lat},${riderLoc.lng}&z=15&output=embed`;
+   570→  } else if (driverLoc) {
+   571→    mapUrl = `https://www.google.com/maps?q=${driverLoc.lat},${driverLoc.lng}&z=15&output=embed`;
+   572→  } else if (from && to) {
+   573→    mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(from + " to " + to + " Saudi Arabia")}&output=embed`;
+   574→  } else if (from) {
+   575→    mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(from + " Saudi Arabia")}&output=embed`;
+   576→  } else {
+   577→    mapUrl = `https://www.google.com/maps?q=Riyadh&output=embed`;
+   578→  }
+   579→
+   580→  return (
+   581→    <div className="relative w-full h-full">
+   582→      <iframe src={mapUrl} className="w-full h-full" style={{ border: 0 }} loading="lazy" />
+   583→      {/* Location badges overlay */}
+   584→      <div className="absolute top-2 right-2 flex flex-col gap-1">
+   585→        {riderLoc && <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">🔵 {status === "ongoing" ? "الوجهة" : "الراكب"}</div>}
+   586→        {driverLoc && <div className="bg-red-600 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">🔴 السائق 🚗</div>}
+   587→      </div>
+   588→    </div>
+   589→  );
+   590→}
+   591→
+   592→// ===== RIDE VIEW =====
+   593→function RideView({ user, lang }: { user: User | null; lang: Lang }) {
+   594→  const [from, setFrom] = useState("");
+   595→  const [to, setTo] = useState("");
+   596→  const [activeField, setActiveField] = useState<"from" | "to" | null>(null);
+   597→  const [selectedService, setSelectedService] = useState("ride");
+   598→  const [paymentMethod, setPaymentMethod] = useState("cash");
+   599→  const [step, setStep] = useState<"search" | "confirm" | "tracking">("search");
+   600→  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+   601→  const [lateFeeData, setLateFeeData] = useState({ waitingMinutes: 0, lateFee: 0, freeMinutesLeft: 3 });
+   602→  const [elapsed, setElapsed] = useState(0);
+   603→  const [chatOpen, setChatOpen] = useState(false);
+   604→  const [riderLoc, setRiderLoc] = useState<{ lat: number; lng: number } | null>(null);
+   605→  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
+   606→  const { toast } = useToast();
+   607→  const prevStatus = useRef<string>("");
+   608→
+   609→  const [calc, setCalc] = useState({ distance: 0, duration: 0, surge: 1 });
+   610→  useEffect(() => {
+   611→    if (from && to) {
+   612→      const dist = calculateDistance(from, to);
+   613→      const dur = calculateDuration(dist);
+   614→      const surge = getSurgeMultiplier();
+   615→      setCalc({ distance: dist, duration: dur, surge });
+   616→    }
+   617→  }, [from, to]);
+   618→
+   619→  const prices = serviceTypes.map((s) => ({ ...s, price: Math.floor(calculatePrice(s.id, calc.distance, calc.duration) * calc.surge) }));
+   620→  const selectedPrice = prices.find((p) => p.id === selectedService);
+   621→
+   622→  useEffect(() => {
+   623→    if (step !== "tracking" || !activeTrip || !user) return;
+   624→    const poll = async () => {
+   625→      try {
+   626→        const res = await fetch(`/api/trips?userId=${user.id}&activeOnly=true`);
+   627→        const data = await res.json();
+   628→        if (Array.isArray(data) && data.length > 0) {
+   629→          const trip = data[0];
+   630→          setActiveTrip(trip);
+   631→          if (trip.status !== prevStatus.current) {
+   632→            if (trip.status === "accepted" && prevStatus.current === "pending") safePlaySound(playRideAcceptedSound);
+   633→            if (trip.status === "driver_arrived" && prevStatus.current === "accepted") safePlaySound(playDriverArrivedSound);
+   634→            if (trip.status === "completed") safePlaySound(playTripCompletedSound);
+   635→            prevStatus.current = trip.status;
+   636→          }
+   637→          if (trip.status === "completed") { setStep("search"); setTimeout(() => toast({ title: lang === "ar" ? "وصلت! 🎉" : "Arrived! 🎉" }), 0); }
+   638→        }
+   639→      } catch {}
+   640→    };
+   641→    const interval = setInterval(poll, 3000);
+   642→    return () => clearInterval(interval);
+   643→  }, [step, activeTrip, user, toast, lang]);
+   644→
+   645→  // Send rider GPS location when tracking
+   646→  useEffect(() => {
+   647→    if (step !== "tracking" || !user) return;
+   648→    const sendLoc = () => {
+   649→      if (!navigator.geolocation) return;
+   650→      navigator.geolocation.getCurrentPosition(
+   651→        (pos) => {
+   652→          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+   653→          setRiderLoc(loc);
+   654→          fetch("/api/users/location", {
+   655→            method: "POST",
+   656→            headers: { "Content-Type": "application/json" },
+   657→            body: JSON.stringify({ userId: user.id, lat: loc.lat, lng: loc.lng }),
+   658→          }).catch(() => {});
+   659→        },
+   660→        () => {},
+   661→        { enableHighAccuracy: true, timeout: 10000 }
+   662→      );
+   663→    };
+   664→    sendLoc();
+   665→    const interval = setInterval(sendLoc, 10000);
+   666→    return () => clearInterval(interval);
+   667→  }, [step, user]);
+   668→
+   669→  // Poll driver location when trip is accepted
+   670→  useEffect(() => {
+   671→    if (step !== "tracking" || !activeTrip?.driverId) return;
+   672→    const getDriverLoc = async () => {
+   673→      try {
+   674→        const res = await fetch(`/api/drivers/location?driverUserId=${activeTrip.driverId}`);
+   675→        const data = await res.json();
+   676→        if (data.lat && data.lng) {
+   677→          setDriverLoc({ lat: data.lat, lng: data.lng });
+   678→        }
+   679→      } catch {}
+   680→    };
+   681→    getDriverLoc();
+   682→    const interval = setInterval(getDriverLoc, 5000);
+   683→    return () => clearInterval(interval);
+   684→  }, [step, activeTrip?.driverId]);
+   685→
+   686→  useEffect(() => {
+   687→    if (activeTrip?.status !== "driver_arrived" || !activeTrip.id) return;
+   688→    const poll = async () => { try { const res = await fetch(`/api/trips/late-fee?tripId=${activeTrip.id}`); const data = await res.json(); setLateFeeData(data); } catch {} };
+   689→    poll();
+   690→    const interval = setInterval(poll, 5000);
+   691→    return () => clearInterval(interval);
+   692→  }, [activeTrip?.status, activeTrip?.id]);
+   693→
+   694→  useEffect(() => {
+   695→    if (activeTrip?.status !== "driver_arrived" || !activeTrip.driverArrivedAt) return;
+   696→    const update = () => { const diff = Date.now() - new Date(activeTrip.driverArrivedAt!).getTime(); setElapsed(Math.floor(diff / 1000)); };
+   697→    update();
+   698→    const interval = setInterval(update, 1000);
+   699→    return () => clearInterval(interval);
+   700→  }, [activeTrip?.status, activeTrip?.driverArrivedAt]);
+   701→
+   702→  const handleBook = () => {
+   703→    if (!user) { toast({ title: lang === "ar" ? "سجل دخولك أولاً" : "Login first", variant: "destructive" }); return; }
+   704→    if (!from || !to) { toast({ title: lang === "ar" ? "أدخل نقطة الانطلاق والوجهة" : "Enter pickup and destination", variant: "destructive" }); return; }
+   705→    setStep("confirm");
+   706→  };
+   707→
+   708→  const confirmBooking = async () => {
+   709→    if (!user) return;
+   710→    try {
+   711→      const res = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, serviceType: selectedService, fromAddress: from, toAddress: to, distance: calc.distance, duration: calc.duration, price: selectedPrice?.price, paymentMethod }) });
+   712→      const data = await res.json();
+   713→      if (!res.ok) throw new Error(data.error);
+   714→      setActiveTrip(data); setStep("tracking"); prevStatus.current = "pending";
+   715→      setTimeout(() => toast({ title: lang === "ar" ? "تم الحجز! 🚗" : "Booked! 🚗", description: lang === "ar" ? "جارٍ البحث عن سائق..." : "Finding driver..." }), 0);
+   716→    } catch (e) { toast({ title: lang === "ar" ? "فشل الحجز" : "Booking failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
+   717→  };
+   718→
+   719→  const handleCancel = async () => {
+   720→    if (!activeTrip || !user) return;
+   721→    try {
+   722→      const res = await fetch("/api/trips/cancel-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: activeTrip.id, requestedBy: user.id, reason: lang === "ar" ? "إلغاء من الراكب" : "Rider cancel" }) });
+   723→      const data = await res.json();
+   724→      if (data.direct) { setStep("search"); setActiveTrip(null); setTimeout(() => toast({ title: lang === "ar" ? "تم إلغاء الرحلة" : "Trip cancelled" }), 0); }
+   725→      else { setTimeout(() => toast({ title: lang === "ar" ? "تم تقديم طلب الإلغاء للإدارة" : "Cancellation request sent" }), 0); }
+   726→    } catch { toast({ title: lang === "ar" ? "فشل الإلغاء" : "Cancel failed", variant: "destructive" }); }
+   727→  };
+   728→
+   729→  if (step === "tracking" && activeTrip) {
+   730→    const status = activeTrip.status;
+   731→    const mins = Math.floor(elapsed / 60);
+   732→    const secs = elapsed % 60;
+   733→    return (
+   734→      <div className="max-w-5xl mx-auto px-4 py-6">
+   735→        <div className="grid lg:grid-cols-5 gap-6">
+   736→          <div className="lg:col-span-3">
+   737→            <Card className="overflow-hidden border-zinc-200">
+   738→              <div className="h-96">
+   739→                <LiveMap riderLoc={riderLoc} driverLoc={driverLoc} from={activeTrip.fromAddress} to={activeTrip.toAddress} status={activeTrip.status} />
+   740→              </div>
+   741→            </Card>
+   742→          </div>
+   743→          <div className="lg:col-span-2">
+   744→            <Card className="p-6 border-zinc-200">
+   745→              <div className="flex items-center justify-between mb-4">
+   746→                <h2 className="text-xl font-bold text-black">{t("ride.driverInfo", lang)}</h2>
+   747→                {activeTrip.driverId && <Button size="sm" variant="outline" onClick={() => setChatOpen(true)}><MessageCircle className="w-4 h-4 ml-2" />{lang === "ar" ? "محادثة" : "Chat"}</Button>}
+   748→              </div>
+   749→              {status === "pending" && (<div className="text-center py-8"><div className="animate-spin w-12 h-12 border-4 border-zinc-200 border-t-black rounded-full mx-auto mb-4"></div><p className="font-bold text-black">{t("ride.searching", lang)}</p><p className="text-sm text-zinc-500 mt-1">{t("ride.searchingDesc", lang)}</p></div>)}
+   750→              {status === "accepted" && (<div className="space-y-3"><div className="bg-green-50 p-3 rounded-xl text-center"><p className="font-bold text-green-700">✅ {t("ride.driverAccepted", lang)}</p><p className="text-sm text-green-600">{t("ride.driverOnWay", lang)}</p></div></div>)}
+   751→              {status === "driver_arrived" && (<div className="space-y-3"><div className="bg-blue-50 p-4 rounded-xl text-center"><p className="font-bold text-blue-700 text-lg">🚗 {t("ride.driverArrived", lang)}</p><p className="text-sm text-blue-600">{t("ride.driverArrivedDesc", lang)}</p></div><div className="bg-zinc-50 p-3 rounded-xl"><div className="flex justify-between mb-2"><span className="text-sm text-zinc-500">⏱️ {t("ride.elapsed", lang)}</span><span className="font-bold text-black">{mins} {t("ride.minutes", lang)} {secs}s</span></div><div className="flex justify-between mb-2"><span className="text-sm text-zinc-500">🎁 {t("ride.freeLeft", lang)}</span><span className="font-bold text-green-600">{lateFeeData.freeMinutesLeft} {t("ride.minutes", lang)}</span></div>{lateFeeData.lateFee > 0 && (<div className="flex justify-between bg-red-50 p-2 rounded"><span className="text-sm text-red-600">⚠️ {t("ride.lateFee", lang)}</span><span className="font-bold text-red-600">{lateFeeData.lateFee} ر.س</span></div>)}</div></div>)}
+   752→              {status === "ongoing" && (<div className="bg-green-50 p-4 rounded-xl text-center"><p className="font-bold text-green-700 text-lg">🚗💨 {t("ride.tripOngoing", lang)}</p><p className="text-sm text-green-600">{t("ride.enRoute", lang)} {activeTrip.toAddress}</p><div className="mt-2 bg-yellow-50 p-2 rounded text-xs text-yellow-700">🔒 {t("ride.cancelLocked", lang)}</div></div>)}
+   753→              <Separator className="my-4" />
+   754→              <div className="space-y-2 text-sm">
+   755→                <div className="flex items-center gap-2"><span className="text-green-500">●</span><span className="text-zinc-600">{activeTrip.fromAddress}</span></div>
+   756→                <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-zinc-600">{activeTrip.toAddress}</span></div>
+   757→              </div>
+   758→              <Separator className="my-4" />
+   759→              <div className="flex justify-between mb-4"><span className="text-zinc-500">{t("ride.cost", lang)}</span><span className="font-bold text-black text-xl">{activeTrip.finalPrice || activeTrip.price} ر.س</span></div>
+   760→              <Button onClick={handleCancel} variant="outline" className="w-full h-12 border-red-200 text-red-600 hover:bg-red-50">{activeTrip.cancellationLocked ? t("ride.requestCancel", lang) : t("ride.cancelTrip", lang)}</Button>
+   761→            </Card>
+   762→          </div>
+   763→        </div>
+   764→        {chatOpen && activeTrip.driverId && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} tripId={activeTrip.id} currentUserId={user?.id || ""} otherUserId={activeTrip.driverId} otherName={activeTrip.driver?.name || "Driver"} lang={lang} otherAvatar={activeTrip.driver?.user?.avatar || null} />}
+   765→      </div>
+   766→    );
+   767→  }
+   768→
+   769→  return (
+   770→    <div className="max-w-7xl mx-auto px-4 py-6">
+   771→      <div className="grid lg:grid-cols-5 gap-6">
+   772→        <div className="lg:col-span-3 order-2 lg:order-1">
+   773→          <Card className="overflow-hidden border-zinc-200"><div className="h-96 lg:h-[500px]"><iframe src={`https://www.google.com/maps?q=${encodeURIComponent((from || "Riyadh") + " Saudi Arabia")}&output=embed`} className="w-full h-full" style={{ border: 0 }} loading="lazy" /></div></Card>
+   774→        </div>
+   775→        <div className="lg:col-span-2 order-1 lg:order-2">
+   776→          <Card className="p-6 border-zinc-200">
+   777→            <h2 className="text-2xl font-bold text-black mb-6">{t("ride.title", lang)}</h2>
+   778→            <div className="space-y-3 mb-4">
+   779→              <div className="relative">
+   780→                <span className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-green-500">●</span>
+   781→                <Input placeholder={t("ride.from", lang)} value={from} onChange={(e) => setFrom(e.target.value)} onFocus={() => setActiveField("from")} onBlur={() => setTimeout(() => setActiveField(null), 200)} className="pr-10 h-12 border-zinc-200 focus:border-black" />
+   782→              </div>
+   783→              <div className="flex justify-center gap-2">
+   784→                <button onClick={() => { const t = from; setFrom(to); setTo(t); }} className="p-2 hover:bg-zinc-100 rounded-lg">⇅</button>
+   785→                <button onClick={() => setFrom(lang === "ar" ? "موقعي الحالي" : "My location")} className="px-3 py-1.5 text-xs bg-zinc-100 hover:bg-zinc-200 rounded-lg text-black">📍 {t("ride.myLocation", lang)}</button>
+   786→              </div>
+   787→              <div className="relative">
+   788→                <span className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-red-500">■</span>
+   789→                <Input placeholder={t("ride.to", lang)} value={to} onChange={(e) => setTo(e.target.value)} onFocus={() => setActiveField("to")} onBlur={() => setTimeout(() => setActiveField(null), 200)} className="pr-10 h-12 border-zinc-200 focus:border-black" />
+   790→              </div>
+   791→              {activeField && (<div className="bg-white border border-zinc-200 rounded-xl shadow-lg max-h-60 overflow-y-auto z-20">
+   792→                {popularPlaces.map((p) => (<button key={p.id} onClick={() => { activeField === "from" ? setFrom(p.name) : setTo(p.name); setActiveField(null); }} className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 text-right border-b border-zinc-50"><span className="text-xl">📍</span><div><div className="text-sm text-black">{p.name}</div><div className="text-xs text-zinc-400">{p.city}</div></div></button>))}
+   793→                {allCities.slice(0, 15).map((c, i) => (<button key={i} onClick={() => { activeField === "from" ? setFrom(c.name) : setTo(c.name); setActiveField(null); }} className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 text-right border-b border-zinc-50"><span className="text-xl">🏙️</span><div><div className="text-sm text-black">{c.name}</div><div className="text-xs text-zinc-400">{c.region}</div></div></button>))}
+   794→              </div>)}
+   795→            </div>
+   796→            {from && to && (<div className="bg-zinc-50 rounded-xl p-3 mb-4 grid grid-cols-3 gap-2 text-center text-sm"><div><div className="text-zinc-500 text-xs">{t("ride.distance", lang)}</div><div className="font-bold text-black">{calc.distance} {t("common.km", lang)}</div></div><div><div className="text-zinc-500 text-xs">{t("ride.duration", lang)}</div><div className="font-bold text-black">{calc.duration} {t("common.min", lang)}</div></div><div><div className="text-zinc-500 text-xs">{t("ride.surge", lang)}</div><div className="font-bold text-black">{calc.surge}x</div></div></div>)}
+   797→            <div className="space-y-2 mb-4">
+   798→              <h3 className="font-bold text-black mb-2">{t("ride.chooseService", lang)}</h3>
+   799→              {prices.map((opt) => (<button key={opt.id} onClick={() => setSelectedService(opt.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${selectedService === opt.id ? "border-black bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"}`}><span className="text-3xl">{opt.emoji}</span><div className="flex-1 text-right"><div className="font-bold text-black">{lang === "ar" ? opt.name : t(`services.${opt.id}`, lang)}</div><div className="text-xs text-zinc-500">{opt.desc}</div></div><div className="text-left"><div className="font-bold text-black">{opt.price} ر.س</div><div className="text-xs text-zinc-500">{opt.seats} {t("ride.seats", lang)}</div></div></button>))}
+
+[showing lines 400-799 of 1436; use offset=800 with limit to continue reading]
