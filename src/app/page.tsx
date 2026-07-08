@@ -1682,6 +1682,11 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
   const loadApprovedDrivers = useCallback(() => { fetch("/api/admin/drivers?status=approved").then((r) => r.json()).then((d) => setApprovedDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadUsers = useCallback(() => { if (user) fetch(`/api/admin/users-list?adminId=${user.id}`).then(r => r.json()).then(d => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
   const loadEarnings = useCallback(() => { if (user) fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => { const txs = Array.isArray(d.transactions) ? d.transactions : []; const commission = txs.filter((t: any) => t.type === "commission").reduce((s: number, t: any) => s + t.amount, 0); setEarnings({ totalRevenue: d.wallet?.balance || 0, totalCommission: commission, recentTransactions: txs.slice(0, 20) }); }).catch(() => {}); }, [user]);
+  const loadComplaints = useCallback(() => { if (user) fetch(`/api/complaints?adminId=${user.id}`).then(r => r.json()).then(d => setComplaints(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
+  const loadAllTrips = useCallback(() => { if (user) fetch(`/api/admin/trips?adminId=${user.id}&limit=100`).then(r => r.json()).then(d => setAllTrips(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
+  const loadCoupons = useCallback(() => { if (user) fetch(`/api/admin/coupons?adminId=${user.id}`).then(r => r.json()).then(d => setAllCoupons(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
+  const loadCancellations = useCallback(() => { fetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  const loadUnpaid = useCallback(() => { if (user) fetch(`/api/admin/unpaid-trips?adminId=${user.id}`).then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, [user]);
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { if (tab === "drivers") loadDrivers(); }, [tab, loadDrivers]);
   useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
