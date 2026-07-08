@@ -1870,10 +1870,9 @@ function AuthDialog({ open, onOpenChange, onSuccess, lang }: { open: boolean; on
         <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
           <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="login">{t("auth.login", lang)}</TabsTrigger><TabsTrigger value="register">{t("auth.register", lang)}</TabsTrigger></TabsList>
           <TabsContent value="login" className="space-y-3 mt-4">
-            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder="grouthhacker@gmail.com" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
+            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder={lang === "ar" ? "البريد أو الجوال" : "Email or phone"} onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
             <div><Label>{t("auth.password", lang)}</Label><div className="relative"><Input type={showPwd ? "text" : "password"} value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} placeholder="••••••••" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /><button onClick={() => setShowPwd(!showPwd)} className="absolute left-3 top-1/2 -translate-y-1/2">{showPwd ? "🙈" : "👁️"}</button></div></div>
             <Button onClick={handleLogin} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.loginBtn", lang)}</Button>
-            <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-600 text-center"><p className="font-bold mb-1">{t("auth.demoAccounts", lang)}</p><p>grouthhacker@gmail.com / Admin@2026</p><p>saad@example.com / 123456</p><p>ahmed@driver.com / 123456</p></div>
           </TabsContent>
           <TabsContent value="register" className="space-y-3 mt-4">
             <div><Label>{t("auth.name", lang)}</Label><Input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} /></div>
