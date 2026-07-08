@@ -1221,7 +1221,7 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
             safePlaySound(playNewRequestSound);
             setTimeout(() => toast({ title: lang === "ar" ? `🚨 لديك ${data.availableTrips.length} طلب جديد!` : `🚨 ${data.availableTrips.length} new requests!` }), 0);
           }
-          prevTripsCount.current = data.availableTrips.length;)
+          prevTripsCount.current = data.availableTrips.length;
                     
         }
       } catch {}
