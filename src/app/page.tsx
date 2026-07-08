@@ -24,7 +24,7 @@ import { saudiRegions, serviceTypes, popularPlaces, allCities, platformBankAccou
 
 // ===== TYPES =====
 type User = { id: string; name: string; email: string; phone: string; city?: string | null; region?: string | null; walletBalance: number; isAdmin: boolean; isDriver: boolean; isVerified: boolean; isBlocked?: boolean; rating: number; tripsCount: number; };
-type Trip = { id: string; userId: string; driverId?: string | null; serviceType: string; fromAddress: string; toAddress: string; distance: number; duration: number; price: number; finalPrice?: number; status: string; paymentMethod: string; lateFee?: number; cashReceived?: number | null; unpaidAmount?: number; cancellationLocked?: boolean; cancellationRequest?: string | null; driverArrivedAt?: string | null; startedAt?: string | null; createdAt: string; driver?: { name: string; phone: string } | null; user?: { name: string; phone: string } | null; };
+type Trip = { id: string; userId: string; driverId?: string | null; serviceType: string; fromAddress: string; toAddress: string; distance: number; duration: number; price: number; finalPrice?: number; status: string; paymentMethod: string; lateFee?: number; cashReceived?: number | null; unpaidAmount?: number; cancellationLocked?: boolean; cancellationRequest?: string | null; driverArrivedAt?: string | null; startedAt?: string | null; createdAt: string; rating?: number; review?: string; driver?: { name: string; phone: string } | null; user?: { name: string; phone: string } | null; };
 type View = "home" | "ride" | "trips" | "driver" | "driver-register" | "bank" | "profile" | "admin";
 const STORAGE_KEY = "uber_user";
 
