@@ -1090,7 +1090,7 @@ function ComplaintDialog({ open, onOpenChange, fromUserId, againstUserId, agains
 // ===== TRIPS VIEW =====
 function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [filter, setFilter] = useState<"all" | "completed" | "cancelled">("all");
+  const [filter, setFilter] = useState<"all" | "completed" | "cancelled" | "active">("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1098,7 +1098,7 @@ function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
     fetch(`/api/trips?userId=${user.id}`).then((r) => r.json()).then((d) => { setTrips(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
   }, [user]);
 
-  const filtered = trips.filter((t) => filter === "all" || t.status === filter);
+  const filtered = trips.filter((t) => { if (filter === "all") return true; if (filter === "active") return ["pending", "accepted", "driver_arrived", "ongoing"].includes(t.status); return t.status === filter; });
   if (loading) return <div className="text-center py-20">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>;
 
   return (
