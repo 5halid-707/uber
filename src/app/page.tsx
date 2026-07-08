@@ -1551,6 +1551,86 @@ function BankView({ user, lang }: { user: User | null; lang: Lang }) {
   );
 }
 
+
+// ===== WALLET VIEW =====
+function WalletView({ user, lang }: { user: User | null; lang: Lang }) {
+  const [balance, setBalance] = useState(user?.walletBalance || 0);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [showTopup, setShowTopup] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const loadData = useCallback(() => {
+    if (!user) return;
+    fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => {
+      const bal = d.balance !== undefined ? d.balance : (d.wallet?.balance !== undefined ? d.wallet.balance : user?.walletBalance || 0);
+      setBalance(bal);
+      if (Array.isArray(d.transactions)) setTransactions(d.transactions);
+    }).catch(() => {});
+  }, [user, user?.walletBalance]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const topup = async () => {
+    if (!user || !topupAmount) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/wallet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, amount: parseFloat(topupAmount), type: "topup", description: lang === "ar" ? "شحن المحفظة" : "Wallet top-up" }) });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      if (data.newBalance !== undefined) setBalance(data.newBalance);
+      setShowTopup(false); setTopupAmount(""); loadData();
+      toast({ title: lang === "ar" ? `✅ تم شحن ${parseFloat(topupAmount)} ر.س` : `✅ Topped up ${parseFloat(topupAmount)} SAR` });
+    } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  const withdraw = async () => {
+    if (!user || !withdrawAmount) return;
+    const amount = parseFloat(withdrawAmount);
+    if (amount > balance) { toast({ title: lang === "ar" ? "رصيد غير كافٍ" : "Insufficient balance", variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/wallet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, amount: amount, type: "withdrawal", description: lang === "ar" ? "سحب من المحفظة" : "Wallet withdrawal" }) });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      if (data.newBalance !== undefined) setBalance(data.newBalance);
+      setShowWithdraw(false); setWithdrawAmount(""); loadData();
+      toast({ title: lang === "ar" ? `✅ تم سحب ${amount} ر.س` : `✅ Withdrew ${amount} SAR` });
+    } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-6 border-zinc-200 bg-gradient-to-br from-black to-zinc-800 text-white">
+        <p className="text-zinc-400 text-sm">{t("profile.walletBalance", lang)}</p>
+        <p className="text-4xl font-bold mt-1">{balance} ر.س</p>
+        <div className="flex gap-2 mt-4">
+          <Button onClick={() => setShowTopup(true)} className="bg-white text-black hover:bg-zinc-200 flex-1">➕ {t("profile.topup", lang)}</Button>
+          <Button onClick={() => setShowWithdraw(true)} variant="outline" className="border-white text-white hover:bg-white hover:text-black flex-1">➖ {lang === "ar" ? "سحب" : "Withdraw"}</Button>
+        </div>
+      </Card>
+      <Card className="p-6 border-zinc-200">
+        <h3 className="font-bold text-black mb-4">{lang === "ar" ? "سجل المعاملات" : "Transactions"}</h3>
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {transactions.length === 0 ? (<p className="text-center text-zinc-500 py-8">{lang === "ar" ? "لا توجد معاملات" : "No transactions"}</p>) : transactions.map((tx) => (
+            <div key={tx.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg">
+              <div><div className="font-medium text-black text-sm">{tx.description}</div><div className="text-xs text-zinc-400">{new Date(tx.createdAt).toLocaleDateString("ar-SA")}</div></div>
+              <div className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>{tx.amount > 0 ? "+" : ""}{tx.amount} ر.س</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Dialog open={showTopup} onOpenChange={setShowTopup}><DialogContent><DialogHeader><DialogTitle>{lang === "ar" ? "شحن المحفظة" : "Top Up Wallet"}</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div><Label>{lang === "ar" ? "المبلغ" : "Amount"} (ر.س)</Label><Input type="number" value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} placeholder="50" className="h-12 text-lg" /></div><div className="flex gap-2 flex-wrap">{[50, 100, 200, 500].map(v => <Button key={v} size="sm" variant="outline" onClick={() => setTopupAmount(String(v))}>{v} ر.س</Button>)}</div><Button onClick={topup} disabled={loading || !topupAmount} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? "..." : (lang === "ar" ? "شحن" : "Top Up")}</Button></div></DialogContent></Dialog>
+      <Dialog open={showWithdraw} onOpenChange={setShowWithdraw}><DialogContent><DialogHeader><DialogTitle>{lang === "ar" ? "سحب من المحفظة" : "Withdraw from Wallet"}</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="bg-zinc-50 p-3 rounded-lg"><div className="text-sm text-zinc-500">{lang === "ar" ? "الرصيد المتاح" : "Available balance"}</div><div className="text-2xl font-bold text-black">{balance} ر.س</div></div><div><Label>{lang === "ar" ? "المبلغ" : "Amount"} (ر.س)</Label><Input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="50" className="h-12 text-lg" /></div><Button onClick={withdraw} disabled={loading || !withdrawAmount} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? "..." : (lang === "ar" ? "سحب" : "Withdraw")}</Button></div></DialogContent></Dialog>
+    </div>
+  );
+}
+
 // ===== PROFILE VIEW =====
 function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; onLogout: () => void }) {
   const [tab, setTab] = useState<"info" | "wallet" | "settings">("info");
