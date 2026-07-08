@@ -1682,9 +1682,6 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
   const loadApprovedDrivers = useCallback(() => { fetch("/api/admin/drivers?status=approved").then((r) => r.json()).then((d) => setApprovedDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadUsers = useCallback(() => { if (user) fetch(`/api/admin/users-list?adminId=${user.id}`).then(r => r.json()).then(d => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
   const loadEarnings = useCallback(() => { if (user) fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => { const txs = Array.isArray(d.transactions) ? d.transactions : []; const commission = txs.filter((t: any) => t.type === "commission").reduce((s: number, t: any) => s + t.amount, 0); setEarnings({ totalRevenue: d.wallet?.balance || 0, totalCommission: commission, recentTransactions: txs.slice(0, 20) }); }).catch(() => {}); }, [user]);
-  useEffect(() => { if (tab === "users") loadUsers(); }, [tab, loadUsers]);
-  useEffect(() => { if (tab === "earnings") loadEarnings(); }, [tab, loadEarnings]);
-  useEffect(() => { loadApprovedDrivers(); }, [loadApprovedDrivers]);
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { if (tab === "drivers") loadDrivers(); }, [tab, loadDrivers]);
   useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
