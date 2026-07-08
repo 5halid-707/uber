@@ -69,7 +69,7 @@ export default function Page() {
 
 
   const handleLogout = useCallback(() => { saveUser(null); setView("home"); setTimeout(() => toast({ title: lang === "ar" ? "تم تسجيل الخروج" : "Logged out" }), 0); }, [saveUser, toast, lang]);
-  const handleAuthSuccess = useCallback((u: User) => { saveUser(u); setAuthOpen(false); setTimeout(() => toast({ title: `${lang === "ar" ? "مرحباً" : "Welcome"} ${u.name} 👋` }), 0); }, [saveUser, toast, lang]);
+  const handleAuthSuccess = useCallback((u: User) => { saveUser(u); setAuthOpen(false); if (u.isDriver && !u.isAdmin) { setView("driver"); } else if (u.isAdmin) { setView("admin"); } else { setView("home"); } setTimeout(() => toast({ title: `${lang === "ar" ? "مرحباً" : "Welcome"} ${u.name} 👋` }), 0); }, [saveUser, toast, lang]);
 
   if (loading) {
     return (
