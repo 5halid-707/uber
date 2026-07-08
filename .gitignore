@@ -1,6 +1,68 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Next.js
 .next/
+out/
+build/
+dist/
+
+# Environment
 .env
+.env.local
+.env.*.local
+.env.production
+
+# Database
 db/
-dev.log
 *.db
+*.db-journal
+*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev.log
+server.log
+
+# OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Project-specific (لا تُرفع)
+skills/
+download/
+upload/
+tool-results/
+.zscripts/
+mini-services/
+examples/
+
+# Cache
+.cache/
+.turbo/
+.eslintcache
+
+# Test
+coverage/
+*.lcov
+
+# Vercel
+.vercel
