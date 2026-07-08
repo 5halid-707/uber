@@ -1110,27 +1110,51 @@ function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
         ))}
       </div>
       <div className="space-y-3">
-        {filtered.map((trip) => (
-          <Card key={trip.id} className="p-4 border-zinc-200">
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">{serviceTypes.find((s) => s.id === trip.serviceType)?.emoji || "🚗"}</span>
-              <div className="flex-1">
-                <div className="flex justify-between mb-2">
-                  <div className="flex gap-2 items-center">
-                    <Badge variant={trip.status === "completed" ? "default" : "destructive"} className={trip.status === "completed" ? "bg-green-600" : trip.status === "ongoing" ? "bg-blue-600" : ""}>{trip.status === "completed" ? t("trips.completedBadge", lang) : trip.status === "ongoing" ? t("trips.ongoingBadge", lang) : t("trips.cancelledBadge", lang)}</Badge>
-                    <span className="text-sm text-zinc-500">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span>
+               {filtered.map((trip) => {
+          const service = serviceTypes.find((s) => s.id === trip.serviceType);
+          const statusInfo: Record<string, { label: string; color: string }> = {
+            pending: { label: lang === "ar" ? "بانتظار السائق" : "Pending", color: "bg-amber-500" },
+            accepted: { label: lang === "ar" ? "تم القبول" : "Accepted", color: "bg-blue-500" },
+            driver_arrived: { label: lang === "ar" ? "السائق وصل" : "Driver Arrived", color: "bg-cyan-500" },
+            ongoing: { label: lang === "ar" ? "قيد التنفيذ" : "Ongoing", color: "bg-purple-500" },
+            completed: { label: lang === "ar" ? "مكتملة" : "Completed", color: "bg-green-600" },
+            cancelled: { label: lang === "ar" ? "ملغاة" : "Cancelled", color: "bg-red-500" },
+          };
+          const si = statusInfo[trip.status] || statusInfo.pending;
+          return (
+            <Card key={trip.id} className="p-4 border-zinc-200 hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-4">
+                <span className="text-3xl">{service?.emoji || "🚗"}</span>
+                <div className="flex-1">
+                  <div className="flex justify-between mb-2">
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <Badge className={`${si.color} text-white`}>{si.label}</Badge>
+                      <span className="text-sm text-zinc-500">{service?.name || trip.serviceType}</span>
+                      <span className="text-sm text-zinc-400">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span>
+                    </div>
+                    <span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span>
                   </div>
-                  <span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span>
+                  <div className="text-sm space-y-1">
+                    <div className="flex items-center gap-2"><span className="text-green-500">●</span><span className="text-zinc-600">{trip.fromAddress}</span></div>
+                    <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-zinc-600">{trip.toAddress}</span></div>
+                  </div>
+                  {(trip.driver || trip.user) && (
+                    <div className="mt-2 pt-2 border-t border-zinc-100 flex items-center gap-2 text-xs text-zinc-500">
+                      {trip.driver && <span>🚗 {trip.driver.name} - {trip.driver.phone}</span>}
+                      {trip.user && <span>👤 {trip.user.name} - {trip.user.phone}</span>}
+                    </div>
+                  )}
+                  <div className="mt-2 flex justify-between text-xs">
+                    <span className="text-zinc-400">{lang === "ar" ? "المسافة" : "Distance"}: {trip.distance} {t("common.km", lang)}</span>
+                    <span className="text-zinc-400">{lang === "ar" ? "المدة" : "Duration"}: {trip.duration} {lang === "ar" ? "د" : "min"}</span>
+                  </div>
+                  {trip.unpaidAmount ? <div className="mt-2 text-xs text-red-500 bg-red-50 p-2 rounded">⚠️ {lang === "ar" ? "مبلغ غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div> : null}
+                  {trip.rating ? <div className="mt-2 text-xs text-amber-600">⭐ {trip.rating}/5 {trip.review && `— ${trip.review}`}</div> : null}
                 </div>
-                <div className="text-sm space-y-1">
-                  <div className="flex items-center gap-2"><span className="text-green-500">●</span><span className="text-zinc-600">{trip.fromAddress}</span></div>
-                  <div className="flex items-center gap-2"><span className="text-red-500">■</span><span className="text-zinc-600">{trip.toAddress}</span></div>
-                </div>
-                {trip.unpaidAmount ? <div className="mt-2 text-xs text-red-500">⚠️ {lang === "ar" ? "مبلغ غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div> : null}
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
         {filtered.length === 0 && <div className="text-center py-20 text-zinc-500">{t("trips.noTrips", lang)}</div>}
       </div>
     </div>
