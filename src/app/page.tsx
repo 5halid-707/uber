@@ -1802,3 +1802,4 @@ function AuthDialog({ open, onOpenChange, onSuccess, lang }: { open: boolean; on
     </Dialog>
   );
 }
+
