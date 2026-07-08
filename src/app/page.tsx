@@ -1208,7 +1208,10 @@ function DriverView({ user, lang }: { user: User | null; lang: Lang }) {
           setOnline(data.isOnline ?? false);
           setActiveTrip(data.activeTrip);
           setAvailableTrips(data.availableTrips || []);
-          if (data.availableTrips.length > prevTripsCount.current) safePlaySound(playNewRequestSound);
+                   if (data.availableTrips.length > prevTripsCount.current) {
+            safePlaySound(playNewRequestSound);
+            setTimeout(() => toast({ title: lang === "ar" ? `🚨 لديك ${data.availableTrips.length} طلب جديد!` : `🚨 ${data.availableTrips.length} new requests!` }), 0);
+          }
           prevTripsCount.current = data.availableTrips.length;
         }
       } catch {}
