@@ -1748,9 +1748,59 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
                 )}
               </Card>
             ))}
-            {pendingDrivers.length === 0 && approvedDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}
+                      {pendingDrivers.length === 0 && approvedDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}
           </div>
         </div>
+      )}
+
+      {tab === "users" && (
+        <div className="space-y-4">
+          <div className="flex gap-2"><Input placeholder={lang === "ar" ? "بحث" : "Search"} value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="flex-1" /></div>
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+            {allUsers.filter(u => !userFilter || u.name?.includes(userFilter) || u.email?.includes(userFilter) || u.phone?.includes(userFilter)).map((u) => (
+              <Card key={u.id} className="p-4 border-zinc-200 cursor-pointer hover:shadow-md" onClick={() => setSelectedUser(u)}>
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-12 h-12">{u.avatar ? <img src={u.avatar} alt={u.name} className="w-full h-full rounded-full object-cover" /> : <AvatarFallback>{u.name?.charAt(0)}</AvatarFallback>}</Avatar>
+                  <div className="flex-1">
+                    <div className="font-bold text-black">{u.name} {u.isAdmin && <Badge className="bg-purple-600 text-xs mr-1">أدمن</Badge>}{u.isDriver && <Badge className="bg-blue-600 text-xs mr-1">سائق</Badge>}</div>
+                    <div className="text-xs text-zinc-500">{u.email} • {u.phone}</div>
+                    <div className="text-xs text-zinc-400">رصيد: {u.walletBalance} ر.س • رحلات: {u.tripsCount} • ⭐ {u.rating}</div>
+                  </div>
+                  {!u.isAdmin && (<Button size="sm" variant={u.isBlocked ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); blockUser(u.id, !u.isBlocked); }} className={u.isBlocked ? "bg-green-600" : "border-red-200 text-red-600"}>{u.isBlocked ? "إلغاء الحظر" : "حظر"}</Button>)}
+                </div>
+              </Card>
+            ))}
+            {allUsers.length === 0 && <Card className="p-12 text-center text-zinc-500">لا يوجد مستخدمين</Card>}
+          </div>
+        </div>
+      )}
+
+      {tab === "earnings" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-6 bg-gradient-to-br from-green-500 to-green-700 text-white"><div className="text-sm opacity-80">الإيرادات</div><div className="text-3xl font-bold mt-1">{earnings.totalRevenue} ر.س</div></Card>
+            <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white"><div className="text-sm opacity-80">العمولات (15%)</div><div className="text-3xl font-bold mt-1">{earnings.totalCommission} ر.س</div></Card>
+            <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-700 text-white"><div className="text-sm opacity-80">معاملات</div><div className="text-3xl font-bold mt-1">{earnings.recentTransactions.length}</div></Card>
+          </div>
+          <Card className="p-6 border-zinc-200">
+            <h3 className="font-bold text-black mb-4">آخر المعاملات</h3>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {earnings.recentTransactions.length === 0 ? <p className="text-center text-zinc-500 py-8">لا توجد معاملات</p> : earnings.recentTransactions.map((tx: any, i: number) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg">
+                  <div><div className="font-medium text-black text-sm">{tx.description}</div><div className="text-xs text-zinc-400">{new Date(tx.createdAt).toLocaleString("ar-SA")}</div></div>
+                  <div className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>{tx.amount > 0 ? "+" : ""}{tx.amount} ر.س</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ===== COUPONS SECTION (in Profile) =====
       )}
 
 // ===== COUPONS SECTION (in Profile) =====
