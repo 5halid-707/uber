@@ -1800,8 +1800,7 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
   );
 }
 
-// ===== COUPONS SECTION (in Profile) =====
-      )}
+
 
 // ===== COUPONS SECTION (in Profile) =====
 function CouponsSection({ userId, lang }: { userId: string; lang: Lang }) {
