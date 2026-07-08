@@ -5,10 +5,18 @@
   "lang": "ar",
   "dir": "rtl",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#000000",
+  "categories": ["travel", "navigation", "lifestyle"],
   "icons": [
     { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "احجز رحلة", "url": "/?view=ride", "description": "احجز رحلة جديدة" },
+    { "name": "رحلاتي", "url": "/?view=trips", "description": "عرض رحلاتي السابقة" },
+    { "name": "السائق", "url": "/?view=driver", "description": "وضع السائق" }
   ]
 }
