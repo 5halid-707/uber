@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Globe, MapPin, Navigation, Clock, Star, Wallet, Shield, LogIn, User, Home, Car, MessageCircle, AlertTriangle } from "lucide-react";
+import { LogOut, Globe, MapPin, Navigation, Clock, Star, Wallet, Shield, LogIn, User, Home, Car, MessageCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useLang } from "@/lib/use-lang";
 import { t, type Lang } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -1546,7 +1546,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const { toast } = useToast();
 
   const loadStats = useCallback(() => { fetch("/api/admin/stats").then((r) => r.json()).then(setStats).catch(() => {}); }, []);
-  const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending").then((r) => r.json()).then((d) => setPendingDrivers(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending").then((r) => r.json()).then((d) => setPendingDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadCancellations = useCallback(() => { fetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
   const loadUnpaid = useCallback(() => { if (user) fetch(`/api/admin/unpaid-trips?adminId=${user.id}`).then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, [user]);
 
