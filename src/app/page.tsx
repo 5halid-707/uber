@@ -715,7 +715,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   useEffect(() => {
     if (!user) return;
     fetch(`/api/coupons?userId=${user.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setUserCoupons(d); }).catch(() => {});
-  }, [user, lang, toast]);    // تنبيه متكرر كل 10 ثوانٍ عند وجود طلبات معلّقة   useEffect(() => {     if (!online || availableTrips.length === 0 || activeTrip) return;     const alertInterval = setInterval(() => {       safePlaySound(playNewRequestSound);     }, 10000);     return () => clearInterval(alertInterval);   }, [online, availableTrips.length, activeTrip]);
+  }, [user, lang, toast]);
 
   // Poll unread chat when tracking
   useEffect(() => {
