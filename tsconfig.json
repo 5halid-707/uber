@@ -29,6 +29,8 @@
       ]
     }
   },
+
+  "exclude": ["node_modules", ".next", "examples", "skills", "download", "upload", "tool-results", ".zscripts", "mini-services"],
   "include": [
     "next-env.d.ts",
     "**/*.ts",
