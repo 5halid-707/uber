@@ -66,14 +66,7 @@ export default function Page() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
  }, [user, lang, toast]);
 
-  // تنبيه متكرر كل 10 ثوانٍ عند وجود طلبات معلّقة
-  useEffect(() => {
-    if (!online || availableTrips.length === 0 || activeTrip) return;
-    const alertInterval = setInterval(() => {
-      safePlaySound(playNewRequestSound);
-    }, 10000);
-    return () => clearInterval(alertInterval);
-  }, [online, availableTrips.length, activeTrip]);
+
 
   const handleLogout = useCallback(() => { saveUser(null); setView("home"); setTimeout(() => toast({ title: lang === "ar" ? "تم تسجيل الخروج" : "Logged out" }), 0); }, [saveUser, toast, lang]);
   const handleAuthSuccess = useCallback((u: User) => { saveUser(u); setAuthOpen(false); setTimeout(() => toast({ title: `${lang === "ar" ? "مرحباً" : "Welcome"} ${u.name} 👋` }), 0); }, [saveUser, toast, lang]);
