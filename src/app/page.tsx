@@ -1654,17 +1654,19 @@ function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; 
 
 // ===== ADMIN VIEW =====
 function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
-  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "cancellations" | "unpaid" | "complaints" | "coupons">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "users" | "earnings" | "complaints" | "coupons" | "cancellations" | "unpaid">("dashboard");
   const [complaints, setComplaints] = useState<any[]>([]);
   const [allTrips, setAllTrips] = useState<any[]>([]);
   const [tripFilter, setTripFilter] = useState("all");
   const [allCoupons, setAllCoupons] = useState<any[]>([]);
   const [newCoupon, setNewCoupon] = useState({ code: "", type: "fixed", value: "", maxUses: "1" });
-
-  const loadComplaints = useCallback(() => { if (user) fetch(`/api/complaints?adminId=${user.id}`).then(r => r.json()).then(d => setComplaints(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadAllTrips = useCallback(() => { if (user) fetch(`/api/admin/trips?adminId=${user.id}&limit=100`).then(r => r.json()).then(d => setAllTrips(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadCoupons = useCallback(() => { if (user) fetch(`/api/admin/coupons?adminId=${user.id}`).then(r => r.json()).then(d => setAllCoupons(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [userFilter, setUserFilter] = useState("");
+  const [approvedDrivers, setApprovedDrivers] = useState<any[]>([]);
+  const [earnings, setEarnings] = useState<any>({ totalRevenue: 0, totalCommission: 0, recentTransactions: [] });
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
+  const [selectedTrip, setSelectedTrip] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
   useEffect(() => { if (tab === "trips") loadAllTrips(); }, [tab, loadAllTrips]);
   useEffect(() => { if (tab === "coupons") loadCoupons(); }, [tab, loadCoupons]);
