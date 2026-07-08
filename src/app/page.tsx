@@ -1702,68 +1702,56 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang), badge: pendingDrivers.length }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "users", l: lang === "ar" ? "المستخدمون" : "Users" }, { id: "earnings", l: lang === "ar" ? "الإيرادات" : "Earnings" }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints", badge: complaints.length }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang), badge: cancellations.length }, { id: "unpaid", l: lang === "ar" ? "غير مدفوع" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={`relative whitespace-nowrap ${tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}`}>{tb.l}{tb.badge ? <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{tb.badge}</span> : null}</Button>))}
       </div>
       {tab === "dashboard" && stats && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[{ l: t("admin.revenue", lang), v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600" }, { l: t("admin.totalTrips", lang), v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-xl font-bold`}>{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}</div>)}
-      {tab === "drivers" && (<div className="space-y-3">{pendingDrivers.map((d) => (<Card key={d.id} className="p-4 border-zinc-200"><div className="flex items-center gap-3 mb-3"><Avatar className="w-12 h-12"><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar><div className="flex-1"><div className="font-bold text-black">{d.user?.name}</div><div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate}</div></div><Badge variant="secondary">⏳</Badge></div><div className="flex gap-2"><Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approve", lang)}</Button><Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectBtn", lang)}</Button></div></Card>))}{pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}</div>)}
-      {tab === "cancellations" && (<div className="space-y-3">{cancellations.map((c) => (<Card key={c.id} className="p-4 border-zinc-200"><div className="mb-3"><div className="font-bold text-black">{c.fromAddress} ← {c.toAddress}</div><div className="text-sm text-zinc-500">{c.cancellationReason}</div></div><div className="flex gap-2"><Button onClick={() => processCancellation(c.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approveCancel", lang)}</Button><Button onClick={() => processCancellation(c.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectCancel", lang)}</Button></div></Card>))}{cancellations.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noCancellations", lang)}</Card>}</div>)}
-      {tab === "unpaid" && (<div className="space-y-3">{unpaidTrips.map((trip) => (<Card key={trip.id} className="p-4 border-zinc-200 border-red-200"><div className="mb-2"><div className="font-bold text-black">{trip.user?.name} - {trip.fromAddress} ← {trip.toAddress}</div><div className="text-sm text-red-600">⚠️ {lang === "ar" ? "غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div></div></Card>))}{unpaidTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد مبالغ غير مدفوعة" : "No unpaid amounts"}</Card>}</div>)}
-      {tab === "trips" && (<div><div className="flex gap-2 mb-4 overflow-x-auto pb-2">{["all","pending","accepted","driver_arrived","ongoing","completed","cancelled"].map(s => <Button key={s} size="sm" variant={tripFilter === s ? "default" : "outline"} onClick={() => setTripFilter(s)} className={tripFilter === s ? "bg-black hover:bg-zinc-800" : ""}>{s === "all" ? (lang === "ar" ? "الكل" : "All") : s}</Button>)}</div><div className="space-y-2 max-h-[70vh] overflow-y-auto">{allTrips.filter(t => tripFilter === "all" || t.status === tripFilter).map(trip => (<Card key={trip.id} className="p-3 border-zinc-200"><div className="flex items-center justify-between mb-1"><div className="font-bold text-black text-sm">{trip.user?.name || "?"} → {trip.driver?.name || (lang === "ar" ? "بدون سائق" : "No driver")}</div><Badge variant={trip.status === "completed" ? "default" : trip.status === "cancelled" ? "destructive" : "secondary"} className={trip.status === "completed" ? "bg-green-600" : ""}>{trip.status}</Badge></div><div className="text-xs text-zinc-500">{trip.fromAddress} ← {trip.toAddress}</div><div className="flex justify-between mt-1 text-xs"><span className="text-zinc-400">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span><span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span></div></Card>))}{allTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد رحلات" : "No trips"}</Card>}</div></div>)}
-
-      {tab === "complaints" && (<div className="space-y-3 max-h-[70vh] overflow-y-auto">{complaints.map((c, i) => (<Card key={c.id || i} className="p-4 border-zinc-200 border-red-100"><div className="flex items-start justify-between mb-2"><Badge className="bg-red-600">🚨 {lang === "ar" ? "شكوى" : "Complaint"}</Badge><span className="text-xs text-zinc-400">{new Date(c.createdAt).toLocaleString("ar-SA")}</span></div><div className="font-bold text-black text-sm mb-1">{c.title}</div><div className="text-sm text-zinc-600 whitespace-pre-line">{c.message}</div></Card>))}{complaints.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد شكاوى" : "No complaints"}</Card>}</div>)}
-
-      {tab === "coupons" && (<div className="space-y-4"><Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "إنشاء كوبون جديد" : "Create new coupon"}</h3><div className="grid grid-cols-2 gap-3"><div><Label>{lang === "ar" ? "الكود" : "Code"}</Label><Input value={newCoupon.code} onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })} placeholder="SUMMER2026" className="uppercase" /></div><div><Label>{lang === "ar" ? "النوع" : "Type"}</Label><Select value={newCoupon.type} onValueChange={(v) => setNewCoupon({ ...newCoupon, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fixed">{lang === "ar" ? "مبلغ ثابت" : "Fixed amount"}</SelectItem><SelectItem value="percentage">{lang === "ar" ? "نسبة مئوية" : "Percentage"}</SelectItem></SelectContent></Select></div><div><Label>{lang === "ar" ? "القيمة" : "Value"}</Label><Input type="number" value={newCoupon.value} onChange={(e) => setNewCoupon({ ...newCoupon, value: e.target.value })} placeholder="20" /></div><div><Label>{lang === "ar" ? "عدد الاستخدامات" : "Max uses"}</Label><Input type="number" value={newCoupon.maxUses} onChange={(e) => setNewCoupon({ ...newCoupon, maxUses: e.target.value })} placeholder="1" /></div></div><Button onClick={async () => { if (!newCoupon.code || !newCoupon.value) return; const res = await fetch("/api/admin/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...newCoupon, createdById: user?.id }) }); if (res.ok) { toast({ title: lang === "ar" ? "✅ تم إنشاء الكوبون" : "✅ Coupon created" }); setNewCoupon({ code: "", type: "fixed", value: "", maxUses: "1" }); loadCoupons(); } }} className="w-full bg-black hover:bg-zinc-800 h-12 mt-3">{lang === "ar" ? "إنشاء" : "Create"}</Button></Card><div className="space-y-2">{allCoupons.map(c => (<Card key={c.id} className="p-3 border-zinc-200"><div className="flex items-center justify-between"><div><div className="font-bold text-black">{c.code}</div><div className="text-xs text-zinc-500">{c.type === "percentage" ? `${c.value}%` : `${c.value} ر.س`} • {c.usesCount}/{c.maxUses} {lang === "ar" ? "استخدام" : "uses"}</div></div><Badge className={c.isActive ? "bg-green-600" : "bg-zinc-400"}>{c.isActive ? "✅" : "⏸️"}</Badge></div></Card>))}{allCoupons.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد كوبونات" : "No coupons"}</Card>}</div></div>)}
-    </div>
-  );
-}
-
-// ===== RATING DIALOG =====
-function RatingDialog({ open, onOpenChange, tripId, fromUserId, toUserId, targetName, ratedBy, lang }: {
-  open: boolean; onOpenChange: (o: boolean) => void; tripId: string; fromUserId: string; toUserId: string; targetName: string; ratedBy: "rider" | "driver"; lang: Lang;
-}) {
-  const [stars, setStars] = useState(0);
-  const [hover, setHover] = useState(0);
-  const [review, setReview] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const submit = async () => {
-    if (stars === 0) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/trips/rate", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId, fromUserId, toUserId, rating: stars, review, ratedBy }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast({ title: lang === "ar" ? "شكراً لتقييمك! ⭐" : "Thanks for rating! ⭐" });
-      setStars(0); setReview("");
-      onOpenChange(false);
-    } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
-    finally { setSubmitting(false); }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{lang === "ar" ? "قيّم رحلتك" : "Rate your trip"}</DialogTitle>
-          <DialogDescription>{lang === "ar" ? `كيف كانت تجربتك مع ${targetName}؟` : `How was your experience with ${targetName}?`}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="flex justify-center gap-2">
-            {[1,2,3,4,5].map(n => (
-              <button key={n} onClick={() => setStars(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} className="text-4xl transition-transform hover:scale-125">
-                <span className={n <= (hover || stars) ? "text-yellow-400" : "text-zinc-300"}>★</span>
-              </button>
-            ))}
+     {tab === "drivers" && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => loadDrivers()} className="bg-black">{lang === "ar" ? `معلّقون (${pendingDrivers.length})` : `Pending (${pendingDrivers.length})`}</Button>
+            <Button size="sm" variant="outline" onClick={() => loadApprovedDrivers()}>{lang === "ar" ? `موافق عليهم (${approvedDrivers.length})` : `Approved (${approvedDrivers.length})`}</Button>
           </div>
-          {stars > 0 && <p className="text-center text-sm font-medium text-zinc-600">{["", lang === "ar" ? "سيء جداً" : "Very bad", lang === "ar" ? "سيء" : "Bad", lang === "ar" ? "مقبول" : "OK", lang === "ar" ? "جيد" : "Good", lang === "ar" ? "ممتاز" : "Excellent"][stars]}</p>}
-          <div><Label>{lang === "ar" ? "تعليق (اختياري)" : "Review (optional)"}</Label><Textarea value={review} onChange={(e) => setReview(e.target.value)} rows={3} placeholder={lang === "ar" ? "اكتب تعليقك..." : "Write a review..."} /></div>
-          <Button onClick={submit} disabled={submitting || stars === 0} className="w-full bg-black hover:bg-zinc-800 h-12">{submitting ? (lang === "ar" ? "جارٍ الإرسال..." : "Sending...") : (lang === "ar" ? "إرسال التقييم" : "Submit rating")}</Button>
+          <div className="space-y-3">
+            {(pendingDrivers.length > 0 ? pendingDrivers : approvedDrivers).map((d) => (
+              <Card key={d.id} className="p-4 border-zinc-200">
+                <div className="flex items-start gap-3 mb-3">
+                  <Avatar className="w-14 h-14 cursor-pointer" onClick={() => setSelectedDriver(d)}><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
+                  <div className="flex-1">
+                    <div className="font-bold text-black cursor-pointer hover:underline" onClick={() => setSelectedDriver(d)}>{d.user?.name}</div>
+                    <div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate} • {d.carColor}</div>
+                    <div className="text-xs text-zinc-400">{d.user?.email} • {d.user?.phone}</div>
+                    <div className="text-xs text-zinc-400">{d.user?.city} • {d.rating}⭐ • {d.tripsCount} {lang === "ar" ? "رحلة" : "trips"}</div>
+                  </div>
+                  <Badge variant={d.isApproved ? "default" : "secondary"} className={d.isApproved ? "bg-green-600" : ""}>{d.isApproved ? "✅" : "⏳"}</Badge>
+                </div>
+                <div className="bg-zinc-50 rounded-lg p-3 mb-3 text-sm space-y-1">
+                  <div><span className="text-zinc-500">{lang === "ar" ? "رقم الرخصة" : "License"}:</span> <span className="font-mono">{d.licenseNumber}</span></div>
+                  {d.carYear && <div><span className="text-zinc-500">{lang === "ar" ? "سنة الصنع" : "Year"}:</span> {d.carYear}</div>}
+                  {d.licenseExpiry && <div><span className="text-zinc-500">{lang === "ar" ? "انتهاء الرخصة" : "License Expiry"}:</span> {new Date(d.licenseExpiry).toLocaleDateString("ar-SA")}</div>}
+                  <div><span className="text-zinc-500">{lang === "ar" ? "الأرباح" : "Earnings"}:</span> <span className="font-bold text-green-600">{d.earnings || 0} ر.س</span></div>
+                </div>
+                {d.documents && d.documents.length > 0 && (
+                  <div className="mb-3">
+                    <div className="text-xs text-zinc-500 mb-2">{lang === "ar" ? "الوثائق والصور" : "Documents & Photos"} ({d.documents.length})</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {d.documents.map((doc: any) => (
+                        <div key={doc.id} className="border rounded-lg p-2 text-xs">
+                          <div className="font-medium mb-1">{doc.type}</div>
+                          {doc.fileData ? <img src={doc.fileData} alt={doc.fileName} className="w-20 h-20 object-cover rounded cursor-pointer" onClick={() => window.open(doc.fileData, "_blank")} /> : <div className="text-blue-600">{doc.fileName}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!d.isApproved && (
+                  <div className="flex gap-2">
+                    <Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">✅ {t("admin.approve", lang)}</Button>
+                    <Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">❌ {t("admin.rejectBtn", lang)}</Button>
+                  </div>
+                )}
+              </Card>
+            ))}
+            {pendingDrivers.length === 0 && approvedDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+      )}
 
 // ===== COUPONS SECTION (in Profile) =====
 function CouponsSection({ userId, lang }: { userId: string; lang: Lang }) {
