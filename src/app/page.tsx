@@ -1132,8 +1132,8 @@ function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold text-black mb-6">{t("trips.title", lang)}</h1>
-      <div className="      <div className="flex gap-2 mb-6 flex-wrap">         {[{ id: "all", l: t("trips.all", lang) }, { id: "active", l: lang === "ar" ? "نشطة" : "Active" }, { id: "completed", l: t("trips.completed", lang) }, { id: "cancelled", l: t("trips.cancelled", lang) }].map((tab) => (
-        {[{ id: "all", l: t("trips.all", lang) }, { id: "completed", l: t("trips.completed", lang) }, { id: "cancelled", l: t("trips.cancelled", lang) }].map((tab) => (
+          <div className="flex gap-2 mb-6 flex-wrap">
+        {[{ id: "all", l: t("trips.all", lang) }, { id: "active", l: lang === "ar" ? "نشطة" : "Active" }, { id: "completed", l: t("trips.completed", lang) }, { id: "cancelled", l: t("trips.cancelled", lang) }].map((tab) => (
           <Button key={tab.id} variant={filter === tab.id ? "default" : "outline"} onClick={() => setFilter(tab.id as typeof filter)} className={filter === tab.id ? "bg-black hover:bg-zinc-800" : ""}>{tab.l}</Button>
         ))}
       </div>
