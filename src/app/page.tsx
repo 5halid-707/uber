@@ -633,9 +633,28 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
         if (Array.isArray(data) && data.length > 0) {
           const trip = data[0];
           setActiveTrip(trip);
-          if (trip.status !== prevStatus.current) {
-            if (trip.status === "accepted" && prevStatus.current === "pending") safePlaySound(playRideAcceptedSound);
-            if (trip.status === "driver_arrived" && prevStatus.current === "accepted") safePlaySound(playDriverArrivedSound);
+                 if (trip.status !== prevStatus.current) {
+            if (trip.status === "accepted" && prevStatus.current === "pending") {
+              safePlaySound(playRideAcceptedSound);
+              setTimeout(() => toast({
+                title: lang === "ar" ? "🚗 تم قبول طلبك!" : "🚗 Ride accepted!",
+                description: lang === "ar" 
+                  ? `السائق: ${trip.driver?.name || "—"} • ${trip.driver?.phone || ""}` 
+                  : `Driver: ${trip.driver?.name || "—"} • ${trip.driver?.phone || ""}`,
+              }), 0);
+            }
+            if (trip.status === "driver_arrived" && prevStatus.current === "accepted") {
+              safePlaySound(playDriverArrivedSound);
+              setTimeout(() => toast({
+                title: lang === "ar" ? "📍 السائق وصل إلى موقعك!" : "📍 Driver has arrived!",
+                description: lang === "ar" ? "اخرج للقاء السائق" : "Go out to meet the driver",
+              }), 0);
+            }
+            if (trip.status === "ongoing" && prevStatus.current === "driver_arrived") {
+              setTimeout(() => toast({
+                title: lang === "ar" ? "🚀 بدأت الرحلة!" : "🚀 Trip started!",
+              }), 0);
+            }
             if (trip.status === "completed") safePlaySound(playTripCompletedSound);
             prevStatus.current = trip.status;
           }
