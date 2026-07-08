@@ -1667,9 +1667,10 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
-  useEffect(() => { if (tab === "trips") loadAllTrips(); }, [tab, loadAllTrips]);
-  useEffect(() => { if (tab === "coupons") loadCoupons(); }, [tab, loadCoupons]);
+ useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
+  useEffect(() => { if (tab === "users") loadUsers(); }, [tab, loadUsers]);
+  useEffect(() => { if (tab === "earnings") loadEarnings(); }, [tab, loadEarnings]);
+  useEffect(() => { loadApprovedDrivers(); }, [loadApprovedDrivers]);
   const [stats, setStats] = useState<any>(null);
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [cancellations, setCancellations] = useState<any[]>([]);
