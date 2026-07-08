@@ -1,14 +1,7 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Sitemap - https://uber-new-omega.vercel.app
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /admin
+
+Sitemap: https://uber-new-omega.vercel.app/sitemap.xml
