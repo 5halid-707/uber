@@ -98,6 +98,12 @@ export function AuthDialog({ open, onOpenChange, onSuccess, lang }: AuthDialogPr
             <Button onClick={handleLogin} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12 text-base">
               {loading ? (lang === "ar" ? "جاري..." : "Loading...") : (lang === "ar" ? "تسجيل الدخول" : "Login")}
             </Button>
+            <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200 space-y-1">
+              <p className="text-xs font-bold text-zinc-600 mb-1">{lang === "ar" ? "📋 حسابات تجريبية" : "📋 Test Accounts"}</p>
+              <p className="text-xs text-zinc-500">أدمن: grouthhacker@gmail.com / Admin@2026</p>
+              <p className="text-xs text-zinc-500">راكب: saad@example.com / 123456</p>
+              <p className="text-xs text-zinc-500">سائق: ahmed@driver.com / 123456</p>
+            </div>
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-200" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-zinc-400">{lang === "ar" ? "أو" : "or"}</span></div>
