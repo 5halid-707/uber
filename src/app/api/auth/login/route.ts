@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json();cd /c/uber-fix
+notepad src/app/api/auth/login/route.ts
     const { identifier, password } = body;
 
     if (!identifier || !password) {
