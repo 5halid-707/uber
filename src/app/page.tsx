@@ -1667,7 +1667,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
-   const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [cancellations, setCancellations] = useState<any[]>([]);
   const [unpaidTrips, setUnpaidTrips] = useState<any[]>([]);
@@ -1684,8 +1684,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const loadUnpaid = useCallback(() => { if (user) fetch(`/api/admin/unpaid-trips?adminId=${user.id}`).then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, [user]);
   const loadEarnings = useCallback(() => { if (user) fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => { const txs = Array.isArray(d.transactions) ? d.transactions : []; const commission = txs.filter((t: any) => t.type === "commission").reduce((s: number, t: any) => s + t.amount, 0); setEarnings({ totalRevenue: d.wallet?.balance || 0, totalCommission: commission, recentTransactions: txs.slice(0, 20) }); }).catch(() => {}); }, [user]);
 
-  useEffect(() => { loadStats(); }, [loadStats]);
-  useEffect(() => { loadDrivers(); loadApprovedDrivers(); }, [loadDrivers, loadApprovedDrivers]);
+  useEffect(() => { loadStats(); loadDrivers(); loadApprovedDrivers(); }, [loadStats, loadDrivers, loadApprovedDrivers]);
   useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
   useEffect(() => { if (tab === "trips") loadAllTrips(); }, [tab, loadAllTrips]);
   useEffect(() => { if (tab === "coupons") loadCoupons(); }, [tab, loadCoupons]);
@@ -1693,114 +1692,115 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   useEffect(() => { if (tab === "earnings") loadEarnings(); }, [tab, loadEarnings]);
   useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
   useEffect(() => { if (tab === "unpaid") loadUnpaid(); }, [tab, loadUnpaid]);
-  useEffect(() => { if (tab === "users") loadUsers(); }, [tab, loadUsers]);
-  useEffect(() => { if (tab === "earnings") loadEarnings(); }, [tab, loadEarnings]);
-  useEffect(() => { loadApprovedDrivers(); }, [loadApprovedDrivers]);
-  const [stats, setStats] = useState<any>(null);
-  const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
-  const [cancellations, setCancellations] = useState<any[]>([]);
-  const [unpaidTrips, setUnpaidTrips] = useState<any[]>([]);
-  const { toast } = useToast();
-
-  const loadStats = useCallback(() => { fetch("/api/admin/stats").then((r) => r.json()).then(setStats).catch(() => {}); }, []);
-const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending").then((r) => r.json()).then((d) => setPendingDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
-  const loadApprovedDrivers = useCallback(() => { fetch("/api/admin/drivers?status=approved").then((r) => r.json()).then((d) => setApprovedDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
-  const loadUsers = useCallback(() => { if (user) fetch(`/api/admin/users-list?adminId=${user.id}`).then(r => r.json()).then(d => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadEarnings = useCallback(() => { if (user) fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => { const txs = Array.isArray(d.transactions) ? d.transactions : []; const commission = txs.filter((t: any) => t.type === "commission").reduce((s: number, t: any) => s + t.amount, 0); setEarnings({ totalRevenue: d.wallet?.balance || 0, totalCommission: commission, recentTransactions: txs.slice(0, 20) }); }).catch(() => {}); }, [user]);
-  const loadComplaints = useCallback(() => { if (user) fetch(`/api/complaints?adminId=${user.id}`).then(r => r.json()).then(d => setComplaints(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadAllTrips = useCallback(() => { if (user) fetch(`/api/admin/trips?adminId=${user.id}&limit=100`).then(r => r.json()).then(d => setAllTrips(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadCoupons = useCallback(() => { if (user) fetch(`/api/admin/coupons?adminId=${user.id}`).then(r => r.json()).then(d => setAllCoupons(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadCancellations = useCallback(() => { fetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
-  const loadUnpaid = useCallback(() => { if (user) fetch(`/api/admin/unpaid-trips?adminId=${user.id}`).then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, [user]);
-  useEffect(() => { loadStats(); }, [loadStats]);
-  useEffect(() => { if (tab === "drivers") loadDrivers(); }, [tab, loadDrivers]);
-  useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
-  useEffect(() => { if (tab === "unpaid") loadUnpaid(); }, [tab, loadUnpaid]);
 
   const approveDriver = async (driverId: string, action: "approve" | "reject") => {
-    try { await fetch("/api/drivers/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId, adminId: user?.id, action }) }); loadDrivers(); setTimeout(() => toast({ title: action === "approve" ? "✅" : "❌" }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+    try { await fetch("/api/drivers/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId, adminId: user?.id, action }) }); loadDrivers(); loadApprovedDrivers(); loadStats(); setTimeout(() => toast({ title: action === "approve" ? (lang === "ar" ? "✅ تمت الموافقة" : "✅ Approved") : (lang === "ar" ? "❌ تم الرفض" : "❌ Rejected") }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
   };
   const processCancellation = async (tripId: string, action: "approve" | "reject") => {
     try { await fetch("/api/admin/cancellation-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId, adminId: user?.id, action }) }); loadCancellations(); setTimeout(() => toast({ title: action === "approve" ? "✅" : "❌" }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
   };
+  const blockUser = async (userId: string, block: boolean, reason?: string) => {
+    try { const res = await fetch("/api/admin/block", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, adminId: user?.id, block, reason }) }); if (!res.ok) throw new Error("Failed"); loadUsers(); loadStats(); toast({ title: block ? (lang === "ar" ? "🚫 تم الحظر" : "🚫 Blocked") : (lang === "ar" ? "✅ تم إلغاء الحظر" : "✅ Unblocked") }); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
+  };
 
   if (!user?.isAdmin) return (<div className="max-w-md mx-auto px-4 py-20 text-center"><Shield className="w-16 h-16 mx-auto text-zinc-300 mb-4" /><h2 className="text-2xl font-bold text-black mb-2">{lang === "ar" ? "صلاحية مرفوضة" : "Access Denied"}</h2></div>);
 
+  const tabs = [{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang), badge: pendingDrivers.length }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "users", l: lang === "ar" ? "المستخدمون" : "Users" }, { id: "earnings", l: lang === "ar" ? "الإيرادات" : "Earnings" }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints", badge: complaints.length }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang), badge: cancellations.length }, { id: "unpaid", l: lang === "ar" ? "غير مدفوع" : "Unpaid" }];
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6"><div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div><div><h1 className="text-3xl font-bold text-black">{t("admin.title", lang)}</h1><p className="text-zinc-500">{t("admin.subtitle", lang)}</p></div></div>
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{[{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang), badge: pendingDrivers.length }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "users", l: lang === "ar" ? "المستخدمون" : "Users" }, { id: "earnings", l: lang === "ar" ? "الإيرادات" : "Earnings" }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints", badge: complaints.length }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang), badge: cancellations.length }, { id: "unpaid", l: lang === "ar" ? "غير مدفوع" : "Unpaid" }].map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={`relative whitespace-nowrap ${tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}`}>{tb.l}{tb.badge ? <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{tb.badge}</span> : null}</Button>))}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3"><div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div><div><h1 className="text-3xl font-bold text-black">{t("admin.title", lang)}</h1><p className="text-zinc-500">{t("admin.subtitle", lang)}</p></div></div>
+        <Button onClick={() => { loadStats(); loadDrivers(); loadApprovedDrivers(); loadComplaints(); loadCancellations(); loadUnpaid(); loadAllTrips(); loadCoupons(); loadUsers(); loadEarnings(); }} variant="outline" size="sm"><RefreshCw className="w-4 h-4 ml-1" />{lang === "ar" ? "تحديث" : "Refresh"}</Button>
       </div>
-      {tab === "dashboard" && stats && (<div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[{ l: t("admin.revenue", lang), v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600" }, { l: t("admin.totalTrips", lang), v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-xl font-bold`}>{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}</div>)}
-     {tab === "drivers" && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => loadDrivers()} className="bg-black">{lang === "ar" ? `معلّقون (${pendingDrivers.length})` : `Pending (${pendingDrivers.length})`}</Button>
-            <Button size="sm" variant="outline" onClick={() => loadApprovedDrivers()}>{lang === "ar" ? `موافق عليهم (${approvedDrivers.length})` : `Approved (${approvedDrivers.length})`}</Button>
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{tabs.map((tb) => (<Button key={tb.id} variant={tab === tb.id ? "default" : "outline"} onClick={() => setTab(tb.id as typeof tab)} className={`relative whitespace-nowrap ${tab === tb.id ? "bg-black hover:bg-zinc-800" : ""}`}>{tb.l}{tb.badge ? <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{tb.badge}</span> : null}</Button>))}</div>
+
+      {tab === "dashboard" && stats && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[{ l: lang === "ar" ? "الإيرادات" : "Revenue", v: `${stats.totalRevenue || 0} ر.س`, c: "bg-green-100 text-green-600", i: "💰" }, { l: t("admin.totalUsers", lang), v: stats.totalUsers || 0, c: "bg-blue-100 text-blue-600", i: "👥" }, { l: t("admin.totalDrivers", lang), v: stats.totalDrivers || 0, c: "bg-purple-100 text-purple-600", i: "🚗" }, { l: lang === "ar" ? "رحلات مكتملة" : "Completed", v: stats.completedTrips || 0, c: "bg-orange-100 text-orange-600", i: "📊" }].map((s, i) => (<Card key={i} className="p-6 border-zinc-200"><div className={`w-12 h-12 ${s.c} rounded-xl mb-3 flex items-center justify-center text-2xl`}>{s.i}</div><div className="text-2xl font-bold text-black">{s.v}</div><div className="text-sm text-zinc-500">{s.l}</div></Card>))}
           </div>
-          <div className="space-y-3">
-            {(pendingDrivers.length > 0 ? pendingDrivers : approvedDrivers).map((d) => (
-              <Card key={d.id} className="p-4 border-zinc-200">
-                <div className="flex items-start gap-3 mb-3">
-                  <Avatar className="w-14 h-14 cursor-pointer" onClick={() => setSelectedDriver(d)}><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
-                  <div className="flex-1">
-                    <div className="font-bold text-black cursor-pointer hover:underline" onClick={() => setSelectedDriver(d)}>{d.user?.name}</div>
-                    <div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate} • {d.carColor}</div>
-                    <div className="text-xs text-zinc-400">{d.user?.email} • {d.user?.phone}</div>
-                    <div className="text-xs text-zinc-400">{d.user?.city} • {d.rating}⭐ • {d.tripsCount} {lang === "ar" ? "رحلة" : "trips"}</div>
-                  </div>
-                  <Badge variant={d.isApproved ? "default" : "secondary"} className={d.isApproved ? "bg-green-600" : ""}>{d.isApproved ? "✅" : "⏳"}</Badge>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[{ l: lang === "ar" ? "سائقون معلّقون" : "Pending Drivers", v: stats.pendingDrivers || 0, c: "text-amber-600" }, { l: lang === "ar" ? "رحلات نشطة" : "Active Trips", v: stats.activeTrips || 0, c: "text-cyan-600" }, { l: lang === "ar" ? "غير مدفوع" : "Unpaid", v: `${stats.totalUnpaid || 0} ر.س`, c: "text-red-600" }, { l: lang === "ar" ? "ملغاة" : "Cancelled", v: stats.cancelledTrips || 0, c: "text-zinc-600" }].map((s, i) => (<Card key={i} className="p-4 border-zinc-200"><div className={`text-2xl font-bold ${s.c}`}>{s.v}</div><div className="text-xs text-zinc-500">{s.l}</div></Card>))}
+          </div>
+        </div>
+      )}
+
+      {tab === "drivers" && (
+        <div className="space-y-3">
+          {pendingDrivers.map((d) => (
+            <Card key={d.id} className="p-4 border-zinc-200">
+              <div className="flex items-start gap-3 mb-3">
+                <Avatar className="w-14 h-14 cursor-pointer" onClick={() => setSelectedDriver(d)}><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
+                <div className="flex-1">
+                  <div className="font-bold text-black cursor-pointer hover:underline" onClick={() => setSelectedDriver(d)}>{d.user?.name}</div>
+                  <div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate} • {d.carColor}</div>
+                  <div className="text-xs text-zinc-400">{d.user?.email} • {d.user?.phone}</div>
                 </div>
-                <div className="bg-zinc-50 rounded-lg p-3 mb-3 text-sm space-y-1">
-                  <div><span className="text-zinc-500">{lang === "ar" ? "رقم الرخصة" : "License"}:</span> <span className="font-mono">{d.licenseNumber}</span></div>
-                  {d.carYear && <div><span className="text-zinc-500">{lang === "ar" ? "سنة الصنع" : "Year"}:</span> {d.carYear}</div>}
-                  {d.licenseExpiry && <div><span className="text-zinc-500">{lang === "ar" ? "انتهاء الرخصة" : "License Expiry"}:</span> {new Date(d.licenseExpiry).toLocaleDateString("ar-SA")}</div>}
-                  <div><span className="text-zinc-500">{lang === "ar" ? "الأرباح" : "Earnings"}:</span> <span className="font-bold text-green-600">{d.earnings || 0} ر.س</span></div>
+                <Badge variant="secondary">⏳</Badge>
+              </div>
+              <div className="bg-zinc-50 rounded-lg p-3 mb-3 text-sm space-y-1">
+                <div><span className="text-zinc-500">{lang === "ar" ? "رقم الرخصة" : "License"}:</span> <span className="font-mono">{d.licenseNumber}</span></div>
+                {d.carYear && <div><span className="text-zinc-500">{lang === "ar" ? "سنة الصنع" : "Year"}:</span> {d.carYear}</div>}
+                <div><span className="text-zinc-500">{lang === "ar" ? "تاريخ التسجيل" : "Registered"}:</span> {new Date(d.createdAt).toLocaleString("ar-SA")}</div>
+              </div>
+              {d.documents && d.documents.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-xs text-zinc-500 mb-2">{lang === "ar" ? "الوثائق" : "Documents"} ({d.documents.length})</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {d.documents.map((doc: any) => (<div key={doc.id} className="border rounded-lg p-2 text-xs"><div className="font-medium mb-1">{doc.type}</div>{doc.fileData ? <img src={doc.fileData} alt={doc.fileName} className="w-20 h-20 object-cover rounded cursor-pointer" onClick={() => window.open(doc.fileData, "_blank")} /> : <div className="text-blue-600">{doc.fileName}</div>}</div>))}
+                  </div>
                 </div>
-                {d.documents && d.documents.length > 0 && (
-                  <div className="mb-3">
-                    <div className="text-xs text-zinc-500 mb-2">{lang === "ar" ? "الوثائق والصور" : "Documents & Photos"} ({d.documents.length})</div>
-                    <div className="flex gap-2 flex-wrap">
-                      {d.documents.map((doc: any) => (
-                        <div key={doc.id} className="border rounded-lg p-2 text-xs">
-                          <div className="font-medium mb-1">{doc.type}</div>
-                          {doc.fileData ? <img src={doc.fileData} alt={doc.fileName} className="w-20 h-20 object-cover rounded cursor-pointer" onClick={() => window.open(doc.fileData, "_blank")} /> : <div className="text-blue-600">{doc.fileName}</div>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {!d.isApproved && (
-                  <div className="flex gap-2">
-                    <Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">✅ {t("admin.approve", lang)}</Button>
-                    <Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">❌ {t("admin.rejectBtn", lang)}</Button>
-                  </div>
-                )}
+              )}
+              <div className="flex gap-2">
+                <Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">✅ {t("admin.approve", lang)}</Button>
+                <Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">❌ {t("admin.rejectBtn", lang)}</Button>
+              </div>
+            </Card>
+          ))}
+          {pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}
+        </div>
+      )}
+
+      {tab === "trips" && (
+        <div>
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+            {["all","pending","accepted","driver_arrived","ongoing","completed","cancelled"].map(s => <Button key={s} size="sm" variant={tripFilter === s ? "default" : "outline"} onClick={() => setTripFilter(s)} className={tripFilter === s ? "bg-black hover:bg-zinc-800" : ""}>{s === "all" ? (lang === "ar" ? "الكل" : "All") : s}</Button>)}
+          </div>
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+            {allTrips.filter(trip => tripFilter === "all" || trip.status === tripFilter).map(trip => (
+              <Card key={trip.id} className="p-3 border-zinc-200 cursor-pointer hover:shadow-md" onClick={() => setSelectedTrip(trip)}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="font-bold text-black text-sm">{trip.user?.name || "?"} → {trip.driver?.name || (lang === "ar" ? "بدون سائق" : "No driver")}</div>
+                  <Badge variant={trip.status === "completed" ? "default" : trip.status === "cancelled" ? "destructive" : "secondary"} className={trip.status === "completed" ? "bg-green-600" : ""}>{trip.status}</Badge>
+                </div>
+                <div className="text-xs text-zinc-500">{trip.fromAddress} ← {trip.toAddress}</div>
+                <div className="flex justify-between mt-1 text-xs"><span className="text-zinc-400">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span><span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span></div>
               </Card>
             ))}
-                      {pendingDrivers.length === 0 && approvedDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}
+            {allTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد رحلات" : "No trips"}</Card>}
           </div>
         </div>
       )}
 
       {tab === "users" && (
         <div className="space-y-4">
-          <div className="flex gap-2"><Input placeholder={lang === "ar" ? "بحث" : "Search"} value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="flex-1" /></div>
+          <Input placeholder={lang === "ar" ? "بحث" : "Search"} value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="flex-1" />
           <div className="space-y-2 max-h-[70vh] overflow-y-auto">
             {allUsers.filter(u => !userFilter || u.name?.includes(userFilter) || u.email?.includes(userFilter) || u.phone?.includes(userFilter)).map((u) => (
               <Card key={u.id} className="p-4 border-zinc-200 cursor-pointer hover:shadow-md" onClick={() => setSelectedUser(u)}>
                 <div className="flex items-center gap-3">
                   <Avatar className="w-12 h-12">{u.avatar ? <img src={u.avatar} alt={u.name} className="w-full h-full rounded-full object-cover" /> : <AvatarFallback>{u.name?.charAt(0)}</AvatarFallback>}</Avatar>
                   <div className="flex-1">
-                    <div className="font-bold text-black">{u.name} {u.isAdmin && <Badge className="bg-purple-600 text-xs mr-1">أدمن</Badge>}{u.isDriver && <Badge className="bg-blue-600 text-xs mr-1">سائق</Badge>}</div>
+                    <div className="font-bold text-black">{u.name} {u.isAdmin && <Badge className="bg-purple-600 text-xs mr-1">أدمن</Badge>}{u.isDriver && <Badge className="bg-blue-600 text-xs mr-1">سائق</Badge>}{u.isBlocked && <Badge className="bg-red-600 text-xs mr-1">محظور</Badge>}</div>
                     <div className="text-xs text-zinc-500">{u.email} • {u.phone}</div>
                     <div className="text-xs text-zinc-400">رصيد: {u.walletBalance} ر.س • رحلات: {u.tripsCount} • ⭐ {u.rating}</div>
                   </div>
-                  {!u.isAdmin && (<Button size="sm" variant={u.isBlocked ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); blockUser(u.id, !u.isBlocked); }} className={u.isBlocked ? "bg-green-600" : "border-red-200 text-red-600"}>{u.isBlocked ? "إلغاء الحظر" : "حظر"}</Button>)}
+                  {!u.isAdmin && (<Button size="sm" variant={u.isBlocked ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); blockUser(u.id, !u.isBlocked); }} className={u.isBlocked ? "bg-green-600 hover:bg-green-700" : "border-red-200 text-red-600"}>{u.isBlocked ? (lang === "ar" ? "إلغاء الحظر" : "Unblock") : (lang === "ar" ? "حظر" : "Block")}</Button>)}
                 </div>
               </Card>
             ))}
-            {allUsers.length === 0 && <Card className="p-12 text-center text-zinc-500">لا يوجد مستخدمين</Card>}
+            {allUsers.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا يوجد مستخدمين" : "No users"}</Card>}
           </div>
         </div>
       )}
@@ -1808,14 +1808,14 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
       {tab === "earnings" && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-6 bg-gradient-to-br from-green-500 to-green-700 text-white"><div className="text-sm opacity-80">الإيرادات</div><div className="text-3xl font-bold mt-1">{earnings.totalRevenue} ر.س</div></Card>
-            <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white"><div className="text-sm opacity-80">العمولات (15%)</div><div className="text-3xl font-bold mt-1">{earnings.totalCommission} ر.س</div></Card>
-            <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-700 text-white"><div className="text-sm opacity-80">معاملات</div><div className="text-3xl font-bold mt-1">{earnings.recentTransactions.length}</div></Card>
+            <Card className="p-6 bg-gradient-to-br from-green-500 to-green-700 text-white"><div className="text-sm opacity-80">{lang === "ar" ? "الإيرادات" : "Revenue"}</div><div className="text-3xl font-bold mt-1">{earnings.totalRevenue} ر.س</div></Card>
+            <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white"><div className="text-sm opacity-80">{lang === "ar" ? "العمولات (15%)" : "Commission"}</div><div className="text-3xl font-bold mt-1">{earnings.totalCommission} ر.س</div></Card>
+            <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-700 text-white"><div className="text-sm opacity-80">{lang === "ar" ? "معاملات" : "Transactions"}</div><div className="text-3xl font-bold mt-1">{earnings.recentTransactions.length}</div></Card>
           </div>
           <Card className="p-6 border-zinc-200">
-            <h3 className="font-bold text-black mb-4">آخر المعاملات</h3>
+            <h3 className="font-bold text-black mb-4">{lang === "ar" ? "آخر المعاملات" : "Recent Transactions"}</h3>
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {earnings.recentTransactions.length === 0 ? <p className="text-center text-zinc-500 py-8">لا توجد معاملات</p> : earnings.recentTransactions.map((tx: any, i: number) => (
+              {earnings.recentTransactions.length === 0 ? <p className="text-center text-zinc-500 py-8">{lang === "ar" ? "لا توجد معاملات" : "No transactions"}</p> : earnings.recentTransactions.map((tx: any, i: number) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg">
                   <div><div className="font-medium text-black text-sm">{tx.description}</div><div className="text-xs text-zinc-400">{new Date(tx.createdAt).toLocaleString("ar-SA")}</div></div>
                   <div className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>{tx.amount > 0 ? "+" : ""}{tx.amount} ر.س</div>
@@ -1826,135 +1826,96 @@ const loadDrivers = useCallback(() => { fetch("/api/admin/drivers?status=pending
         </div>
       )}
 
+      {tab === "complaints" && (<div className="space-y-3 max-h-[70vh] overflow-y-auto">{complaints.map((c, i) => (<Card key={c.id || i} className="p-4 border-zinc-200 border-red-100"><div className="flex items-start justify-between mb-2"><Badge className="bg-red-600">🚨 {lang === "ar" ? "شكوى" : "Complaint"}</Badge><span className="text-xs text-zinc-400">{new Date(c.createdAt).toLocaleString("ar-SA")}</span></div><div className="font-bold text-black text-sm mb-1">{c.title}</div><div className="text-sm text-zinc-600 whitespace-pre-line">{c.message}</div></Card>))}{complaints.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد شكاوى" : "No complaints"}</Card>}</div>)}
+
+      {tab === "coupons" && (<div className="space-y-4"><Card className="p-6 border-zinc-200"><h3 className="font-bold text-black mb-4">{lang === "ar" ? "إنشاء كوبون" : "Create coupon"}</h3><div className="grid grid-cols-2 gap-3"><div><Label>{lang === "ar" ? "الكود" : "Code"}</Label><Input value={newCoupon.code} onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })} placeholder="SUMMER2026" className="uppercase" /></div><div><Label>{lang === "ar" ? "النوع" : "Type"}</Label><Select value={newCoupon.type} onValueChange={(v) => setNewCoupon({ ...newCoupon, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fixed">{lang === "ar" ? "مبلغ" : "Fixed"}</SelectItem><SelectItem value="percentage">{lang === "ar" ? "نسبة" : "Percentage"}</SelectItem></SelectContent></Select></div><div><Label>{lang === "ar" ? "القيمة" : "Value"}</Label><Input type="number" value={newCoupon.value} onChange={(e) => setNewCoupon({ ...newCoupon, value: e.target.value })} placeholder="20" /></div><div><Label>{lang === "ar" ? "الاستخدامات" : "Max uses"}</Label><Input type="number" value={newCoupon.maxUses} onChange={(e) => setNewCoupon({ ...newCoupon, maxUses: e.target.value })} placeholder="1" /></div></div><Button onClick={async () => { if (!newCoupon.code || !newCoupon.value) return; const res = await fetch("/api/admin/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...newCoupon, createdById: user?.id }) }); if (res.ok) { toast({ title: lang === "ar" ? "✅ تم إنشاء الكوبون" : "✅ Created" }); setNewCoupon({ code: "", type: "fixed", value: "", maxUses: "1" }); loadCoupons(); } }} className="w-full bg-black hover:bg-zinc-800 h-12 mt-3">{lang === "ar" ? "إنشاء" : "Create"}</Button></Card><div className="space-y-2">{allCoupons.map(c => (<Card key={c.id} className="p-3 border-zinc-200"><div className="flex items-center justify-between"><div><div className="font-bold text-black">{c.code}</div><div className="text-xs text-zinc-500">{c.type === "percentage" ? `${c.value}%` : `${c.value} ر.س`} • {c.usesCount}/{c.maxUses}</div></div><Badge className={c.isActive ? "bg-green-600" : "bg-zinc-400"}>{c.isActive ? "✅" : "⏸️"}</Badge></div></Card>))}{allCoupons.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد كوبونات" : "No coupons"}</Card>}</div></div>)}
+
+      {tab === "cancellations" && (<div className="space-y-3">{cancellations.map((c) => (<Card key={c.id} className="p-4 border-zinc-200"><div className="mb-3"><div className="font-bold text-black">{c.fromAddress} ← {c.toAddress}</div><div className="text-sm text-zinc-500">{c.cancellationReason}</div></div><div className="flex gap-2"><Button onClick={() => processCancellation(c.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approveCancel", lang)}</Button><Button onClick={() => processCancellation(c.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectCancel", lang)}</Button></div></Card>))}{cancellations.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noCancellations", lang)}</Card>}</div>)}
+
+      {tab === "unpaid" && (<div className="space-y-3">{unpaidTrips.map((trip) => (<Card key={trip.id} className="p-4 border-zinc-200 border-red-200"><div className="mb-2"><div className="font-bold text-black">{trip.user?.name} - {trip.fromAddress} ← {trip.toAddress}</div><div className="text-sm text-red-600">⚠️ {lang === "ar" ? "غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div></div></Card>))}{unpaidTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد مبالغ غير مدفوعة" : "No unpaid"}</Card>}</div>)}
+
+      <Dialog open={!!selectedDriver} onOpenChange={(o) => !o && setSelectedDriver(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{lang === "ar" ? "تفاصيل السائق" : "Driver Details"}</DialogTitle></DialogHeader>
+          {selectedDriver && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-16 h-16"><AvatarFallback className="text-xl">{selectedDriver.user?.name?.charAt(0)}</AvatarFallback></Avatar>
+                <div><div className="font-bold text-black text-lg">{selectedDriver.user?.name}</div><div className="text-sm text-zinc-500">{selectedDriver.user?.email} • {selectedDriver.user?.phone}</div></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><Label className="text-zinc-500">{lang === "ar" ? "السيارة" : "Car"}</Label><div className="font-medium">{selectedDriver.carModel} {selectedDriver.carYear}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "اللوحة" : "Plate"}</Label><div className="font-medium">{selectedDriver.carPlate}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "اللون" : "Color"}</Label><div className="font-medium">{selectedDriver.carColor}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الرخصة" : "License"}</Label><div className="font-mono">{selectedDriver.licenseNumber}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "التقييم" : "Rating"}</Label><div className="font-medium">⭐ {selectedDriver.rating}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الرحلات" : "Trips"}</Label><div className="font-medium">{selectedDriver.tripsCount}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الأرباح" : "Earnings"}</Label><div className="font-medium text-green-600">{selectedDriver.earnings} ر.س</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "المدينة" : "City"}</Label><div className="font-medium">{selectedDriver.user?.city}</div></div>
+              </div>
+              {selectedDriver.documents && selectedDriver.documents.length > 0 && (
+                <div>
+                  <Label className="text-zinc-500">{lang === "ar" ? "الوثائق" : "Documents"}</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {selectedDriver.documents.map((doc: any) => (
+                      <div key={doc.id} className="border rounded-lg p-2">
+                        <div className="text-xs font-medium mb-1">{doc.type}</div>
+                        {doc.fileData ? <img src={doc.fileData} alt={doc.fileName} className="w-full h-32 object-cover rounded cursor-pointer" onClick={() => window.open(doc.fileData, "_blank")} /> : <div className="text-blue-600 text-sm">{doc.fileName}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedTrip} onOpenChange={(o) => !o && setSelectedTrip(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{lang === "ar" ? "تفاصيل الرحلة" : "Trip Details"}</DialogTitle></DialogHeader>
+          {selectedTrip && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الراكب" : "Rider"}</Label><div className="font-medium">{selectedTrip.user?.name} - {selectedTrip.user?.phone}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "السائق" : "Driver"}</Label><div className="font-medium">{selectedTrip.driver?.name || "—"} {selectedTrip.driver?.phone || ""}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "من" : "From"}</Label><div>{selectedTrip.fromAddress}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "إلى" : "To"}</Label><div>{selectedTrip.toAddress}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "المسافة" : "Distance"}</Label><div>{selectedTrip.distance} km</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "المدة" : "Duration"}</Label><div>{selectedTrip.duration} min</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "السعر" : "Price"}</Label><div className="font-bold">{selectedTrip.finalPrice || selectedTrip.price} ر.س</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الحالة" : "Status"}</Label><Badge>{selectedTrip.status}</Badge></div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedUser} onOpenChange={(o) => !o && setSelectedUser(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{lang === "ar" ? "تفاصيل المستخدم" : "User Details"}</DialogTitle></DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-16 h-16">{selectedUser.avatar ? <img src={selectedUser.avatar} alt={selectedUser.name} className="w-full h-full rounded-full object-cover" /> : <AvatarFallback className="text-xl">{selectedUser.name?.charAt(0)}</AvatarFallback>}</Avatar>
+                <div><div className="font-bold text-black text-lg">{selectedUser.name}</div><div className="text-sm text-zinc-500">{selectedUser.email}</div></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الجوال" : "Phone"}</Label><div className="font-medium">{selectedUser.phone}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "المدينة" : "City"}</Label><div className="font-medium">{selectedUser.city || "—"}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الرصيد" : "Balance"}</Label><div className="font-medium text-green-600">{selectedUser.walletBalance} ر.س</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "الرحلات" : "Trips"}</Label><div className="font-medium">{selectedUser.tripsCount}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "التقييم" : "Rating"}</Label><div className="font-medium">⭐ {selectedUser.rating}</div></div>
+                <div><Label className="text-zinc-500">{lang === "ar" ? "النوع" : "Type"}</Label><div>{selectedUser.isAdmin ? "أدمن" : selectedUser.isDriver ? "سائق" : "راكب"}</div></div>
+              </div>
+              {!selectedUser.isAdmin && <Button onClick={() => blockUser(selectedUser.id, !selectedUser.isBlocked)} className={`w-full ${selectedUser.isBlocked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}>{selectedUser.isBlocked ? (lang === "ar" ? "إلغاء الحظر" : "Unblock") : (lang === "ar" ? "حظر المستخدم" : "Block User")}</Button>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
 
-
-
-// ===== COUPONS SECTION (in Profile) =====
-function CouponsSection({ userId, lang }: { userId: string; lang: Lang }) {
-  const [coupons, setCoupons] = useState<any[]>([]);
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-
-  const load = useCallback(() => {
-    fetch(`/api/coupons?userId=${userId}`).then(r => r.json()).then(d => setCoupons(Array.isArray(d) ? d : [])).catch(() => {});
-  }, [userId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const apply = async () => {
-    if (!code.trim()) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/coupons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code.toUpperCase(), userId }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast({ title: lang === "ar" ? "🎉 تم تفعيل الكوبون!" : "🎉 Coupon activated!" });
-      setCode(""); load();
-    } catch (e) { toast({ title: lang === "ar" ? "فشل" : "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" }); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <Card className="p-6 border-zinc-200">
-      <h3 className="font-bold text-black mb-4">🎫 {lang === "ar" ? "كوبونات الخصم" : "Discount Coupons"}</h3>
-      <div className="flex gap-2 mb-4">
-        <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={lang === "ar" ? "أدخل كود الخصم" : "Enter coupon code"} className="flex-1 uppercase" />
-        <Button onClick={apply} disabled={loading || !code.trim()} className="bg-black hover:bg-zinc-800">{lang === "ar" ? "تفعيل" : "Apply"}</Button>
-      </div>
-      <div className="space-y-2">
-        {coupons.map(c => (
-          <div key={c.id} className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded-xl">
-            <div>
-              <div className="font-bold text-black">{c.code}</div>
-              <div className="text-xs text-green-600">{c.type === "percentage" ? `${c.value}% خصم` : `${c.value} ر.س خصم`}</div>
-            </div>
-            <Badge className="bg-green-600">✅ {lang === "ar" ? "مفعّل" : "Active"}</Badge>
-          </div>
-        ))}
-        {coupons.length === 0 && <p className="text-sm text-zinc-500 text-center py-4">{lang === "ar" ? "لا توجد كوبونات مفعّلة" : "No active coupons"}</p>}
-      </div>
-    </Card>
-  );
-}
-
-// ===== AUTH DIALOG =====
-function AuthDialog({ open, onOpenChange, onSuccess, lang }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: (u: User) => void; lang: Lang }) {
-  const [tab, setTab] = useState<"login" | "register">("login");
-  const [loading, setLoading] = useState(false);
-  const [login, setLogin] = useState({ identifier: "", password: "" });
-  const [reg, setReg] = useState({ name: "", email: "", phone: "", password: "", city: "الرياض", region: "الرياض" });
-  const [showPwd, setShowPwd] = useState(false);
-  const { toast } = useToast();
-
-  const handleLogin = async () => {
-    if (!login.identifier || !login.password) { toast({ title: t("auth.enterCredentials", lang), variant: "destructive" }); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(login) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      if (data.isBlocked) { toast({ title: t("auth.blocked", lang), description: data.blockReason, variant: "destructive" }); return; }
-      onSuccess(data); setLogin({ identifier: "", password: "" });
-    } catch (e) { toast({ title: t("auth.loginFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
-    finally { setLoading(false); }
-  };
-
-  const handleRegister = async () => {
-    if (!reg.name || !reg.email || !reg.phone || !reg.password) { toast({ title: t("auth.allFieldsRequired", lang), variant: "destructive" }); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reg) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      onSuccess(data); setReg({ name: "", email: "", phone: "", password: "", city: "الرياض", region: "الرياض" });
-    } catch (e) { toast({ title: t("auth.registerFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
-    finally { setLoading(false); }
-  };
-
-  const handleGoogleLogin = async () => {
-    const email = prompt(lang === "ar" ? "أدخل بريد Google:" : "Enter Google email:", "user@gmail.com");
-    if (!email) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ googleId: `google_${Date.now()}`, email, name: email.split("@")[0], picture: null }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      onSuccess(data);
-    } catch (e) { toast({ title: t("auth.loginFailed", lang), description: e instanceof Error ? e.message : "", variant: "destructive" }); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle className="text-xl font-bold">{t("auth.welcome", lang)}</DialogTitle><DialogDescription>{t("auth.welcomeDesc", lang)}</DialogDescription></DialogHeader>
-        <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-2 border border-zinc-300 rounded-lg h-12 hover:bg-zinc-50 transition-colors">
-          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          <span className="font-medium text-black">{t("auth.loginGoogle", lang)}</span>
-        </button>
-        <div className="flex items-center gap-3"><div className="flex-1 h-px bg-zinc-200"></div><span className="text-xs text-zinc-400">{t("auth.or", lang)}</span><div className="flex-1 h-px bg-zinc-200"></div></div>
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
-          <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="login">{t("auth.login", lang)}</TabsTrigger><TabsTrigger value="register">{t("auth.register", lang)}</TabsTrigger></TabsList>
-          <TabsContent value="login" className="space-y-3 mt-4">
-            <div><Label>{t("auth.emailOrPhone", lang)}</Label><Input value={login.identifier} onChange={(e) => setLogin({ ...login, identifier: e.target.value })} placeholder={lang === "ar" ? "البريد أو الجوال" : "Email or phone"} onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /></div>
-            <div><Label>{t("auth.password", lang)}</Label><div className="relative"><Input type={showPwd ? "text" : "password"} value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} placeholder="••••••••" onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} /><button onClick={() => setShowPwd(!showPwd)} className="absolute left-3 top-1/2 -translate-y-1/2">{showPwd ? "🙈" : "👁️"}</button></div></div>
-            <Button onClick={handleLogin} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.loginBtn", lang)}</Button>
-          </TabsContent>
-          <TabsContent value="register" className="space-y-3 mt-4">
-            <div><Label>{t("auth.name", lang)}</Label><Input value={reg.name} onChange={(e) => setReg({ ...reg, name: e.target.value })} /></div>
-            <div><Label>{t("auth.email", lang)}</Label><Input value={reg.email} onChange={(e) => setReg({ ...reg, email: e.target.value })} /></div>
-            <div><Label>{t("auth.phone", lang)}</Label><Input value={reg.phone} onChange={(e) => setReg({ ...reg, phone: e.target.value })} placeholder="05xxxxxxxx" /></div>
-            <div><Label>{t("auth.password", lang)}</Label><Input type="password" value={reg.password} onChange={(e) => setReg({ ...reg, password: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-2"><div><Label>{t("profile.region", lang)}</Label><Select value={reg.region} onValueChange={(v) => setReg({ ...reg, region: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{saudiRegions.map((r) => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}</SelectContent></Select></div><div><Label>{t("profile.city", lang)}</Label><Select value={reg.city} onValueChange={(v) => setReg({ ...reg, city: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{saudiRegions.find((r) => r.name === reg.region)?.cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div></div>
-            <Button onClick={handleRegister} disabled={loading} className="w-full bg-black hover:bg-zinc-800 h-12">{loading ? t("auth.loading", lang) : t("auth.registerBtn", lang)}</Button>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
+// ===== RATING DIALOG =====
