@@ -21,6 +21,7 @@ import { t, type Lang } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { safePlaySound, playNewRequestSound, playDriverArrivedSound, playRideAcceptedSound, playTripCompletedSound, playMessageSound, initAudio } from "@/lib/sounds";
 import { saudiRegions, serviceTypes, popularPlaces, allCities, platformBankAccounts, saudiBanks, contactInfo, calculateDistance, calculatePrice, calculateDuration, getSurgeMultiplier } from "@/lib/saudi-data";
+import { AuthDialog } from "@/components/auth-dialog";
 
 // ===== TYPES =====
 type User = { id: string; name: string; email: string; phone: string; city?: string | null; region?: string | null; walletBalance: number; isAdmin: boolean; isDriver: boolean; isVerified: boolean; isBlocked?: boolean; rating: number; tripsCount: number; };
