@@ -1,29 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
 // POST /api/drivers/approve
-// Body: { driverId, adminId, action: "approve" | "reject", rejectionReason? }
-// - Sets isApproved, approvalStatus, isVerified (on approve), rejectionReason (on reject)
-// - Notifies driver's user
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { driverId, adminId, action, rejectionReason } = body;
+    const { user: adminUser, error: authError } = verifyAdmin(request);
+    if (!adminUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
 
-    if (!driverId || !adminId || !action) {
+    const body = await request.json();
+    const { driverId, action, rejectionReason } = body;
+
+    if (!driverId || !action) {
       return NextResponse.json(
-        { error: "driverId, adminId, action مطلوبة" },
+        { error: "driverId, action مطلوبة" },
         { status: 400 }
       );
     }
     if (!["approve", "reject"].includes(action)) {
       return NextResponse.json({ error: "action يجب أن تكون approve أو reject" }, { status: 400 });
-    }
-
-    // Verify admin
-    const admin = await db.user.findUnique({ where: { id: adminId } });
-    if (!admin || !admin.isAdmin) {
-      return NextResponse.json({ error: "غير مصرح: المستخدم ليس مديراً" }, { status: 403 });
     }
 
     const driver = await db.driver.findUnique({ where: { id: driverId } });

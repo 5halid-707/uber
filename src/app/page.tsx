@@ -1110,6 +1110,60 @@ function ComplaintDialog({ open, onOpenChange, fromUserId, againstUserId, agains
   );
 }
 
+// ===== RATING DIALOG =====
+function RatingDialog({ open, onOpenChange, tripId, fromUserId, toUserId, targetName, ratedBy, lang }: {
+  open: boolean; onOpenChange: (o: boolean) => void; tripId: string; fromUserId: string; toUserId: string; targetName: string; ratedBy: string; lang: Lang;
+}) {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [review, setReview] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const submit = async () => {
+    if (rating === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/trips/rate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId, fromUserId, toUserId, rating, review, ratedBy }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: lang === "ar" ? "تم التقييم ✅" : "Rating submitted ✅" });
+      setRating(0); setReview("");
+      onOpenChange(false);
+    } catch (e) {
+      toast({ title: lang === "ar" ? "فشل التقييم" : "Rating failed", variant: "destructive" });
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{lang === "ar" ? "تقييم الرحلة" : "Rate your trip"}</DialogTitle>
+          <DialogDescription>{targetName}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4 text-center">
+          <div className="flex justify-center gap-2">
+            {[1,2,3,4,5].map((star) => (
+              <button key={star} type="button" onClick={() => setRating(star)} onMouseEnter={() => setHover(star)} onMouseLeave={() => setHover(0)} className="text-3xl transition-colors">
+                <span className={(hover || rating) >= star ? "text-amber-400" : "text-zinc-300"}>{rating >= star || hover >= star ? "★" : "☆"}</span>
+              </button>
+            ))}
+          </div>
+          <Textarea value={review} onChange={(e) => setReview(e.target.value)} rows={3} placeholder={lang === "ar" ? "اكتب ملاحظاتك (اختياري)..." : "Write a review (optional)..."} />
+          <Button onClick={submit} disabled={submitting || rating === 0} className="w-full bg-black hover:bg-zinc-800 h-12">
+            {submitting ? (lang === "ar" ? "جارٍ الإرسال..." : "Sending...") : (lang === "ar" ? "إرسال التقييم" : "Submit rating")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ===== TRIPS VIEW =====
 function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
   const [trips, setTrips] = useState<Trip[]>([]);
