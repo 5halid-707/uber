@@ -6,6 +6,7 @@ const PUBLIC_API_ROUTES = ["/api/auth/login","/api/auth/register","/api/auth/goo
 const ADMIN_API_ROUTES = ["/api/admin/"];
 const DRIVER_API_ROUTES = ["/api/drivers/approve","/api/drivers/location"];
 const JWT_SECRET = "8ee88588cf4eed1941e2049c716fd530";
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = rateLimitMap.get(ip);
