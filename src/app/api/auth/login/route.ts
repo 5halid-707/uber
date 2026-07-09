@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { signToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();cd /c/uber-fix
-notepad src/app/api/auth/login/route.ts
+    const body = await req.json();
     const { identifier, password } = body;
 
     if (!identifier || !password) {
@@ -29,6 +29,13 @@ notepad src/app/api/auth/login/route.ts
       return NextResponse.json({ error: "كلمة المرور غير صحيحة" }, { status: 401 });
     }
 
+    const token = signToken({
+      userId: user.id,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      isDriver: user.isDriver,
+    });
+
     return NextResponse.json({
       id: user.id,
       name: user.name,
@@ -43,16 +50,10 @@ notepad src/app/api/auth/login/route.ts
       isBlocked: user.isBlocked,
       rating: user.rating,
       tripsCount: user.tripsCount,
+      token,
     });
   } catch (error) {
     console.error("Login error:", error);
-    const errMsg = error instanceof Error ? error.message : String(error);
-    const errStack = error instanceof Error ? error.stack : "";
-    return NextResponse.json({ 
-      error: "خطأ في الخادم", 
-      debug: errMsg,
-      stack: errStack?.split("\n").slice(0, 5).join("\n"),
-      dbUrl: process.env.DATABASE_URL?.substring(0, 30) + "..."
-    }, { status: 500 });
+    return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }
