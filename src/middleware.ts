@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 const PUBLIC_API_ROUTES = ["/api/auth/login","/api/auth/register","/api/auth/google","/api/services","/api/cities","/api/maps/geocode"];
 const ADMIN_API_ROUTES = ["/api/admin/"];
 const DRIVER_API_ROUTES = ["/api/drivers/approve","/api/drivers/location"];
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "dev-secret";
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "dev-secret-preview-only-not-for-production-12345";
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 function checkRateLimit(ip: string): boolean {
