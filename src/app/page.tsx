@@ -44,8 +44,10 @@ export default function Page() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsedUser = JSON.parse(stored) as User;
-        setUser(parsedUser);
+        const parsed = JSON.parse(stored);
+        const { _token, ...userData } = parsed;
+        setUser(userData);
+        if (_token) localStorage.setItem("uber_token", _token);
       }
     } catch {}
     setLoading(false);
@@ -58,7 +60,15 @@ export default function Page() {
   }, []);
 
   const saveUser = useCallback((u: User | null) => {
-    try { if (u) localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); else localStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+      if (u) {
+        const token = localStorage.getItem("uber_token") || "";
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...u, _token: token }));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem("uber_token");
+      }
+    } catch {}
     setUser(u);
   }, []);
 
@@ -1741,9 +1751,9 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const loadApprovedDrivers = useCallback(() => { authFetch("/api/admin/drivers?status=approved").then((r) => r.json()).then((d) => setApprovedDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadUsers = useCallback(() => { authFetch("/api/admin/users-list").then(r => r.json()).then(d => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
   const loadComplaints = useCallback(() => { fetch(`/api/complaints?adminId=${user?.id}`).then(r => r.json()).then(d => setComplaints(Array.isArray(d) ? d : [])).catch(() => {}); }, [user]);
-  const loadAllTrips = useCallback(() => { authFetch("/api/admin/trips?limit=100").then(r => r.json()).then(d => setAllTrips(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  const loadAllTrips = useCallback(() => { authFetch("/api/admin/trips?limit=100").then(r => r.json()).then(d => setAllTrips(Array.isArray(d.trips) ? d.trips : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadCoupons = useCallback(() => { authFetch("/api/admin/coupons").then(r => r.json()).then(d => setAllCoupons(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
-  const loadCancellations = useCallback(() => { authFetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
+  const loadCancellations = useCallback(() => { authFetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d.trips) ? d.trips : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadUnpaid = useCallback(() => { authFetch("/api/admin/unpaid-trips").then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, []);
   const loadEarnings = useCallback(() => { if (user) fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => { const txs = Array.isArray(d.transactions) ? d.transactions : []; const commission = txs.filter((t: any) => t.type === "commission").reduce((s: number, t: any) => s + t.amount, 0); setEarnings({ totalRevenue: d.wallet?.balance || 0, totalCommission: commission, recentTransactions: txs.slice(0, 20) }); }).catch(() => {}); }, [user]);
 
