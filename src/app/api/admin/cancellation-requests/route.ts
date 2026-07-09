@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
-// GET /api/admin/cancellation-requests?adminId=xxx
-// - Lists trips where cancellationRequest === "requested"
+// GET /api/admin/cancellation-requests
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const adminId = searchParams.get("adminId");
-
-    if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin || !admin.isAdmin) {
-        return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
-      }
-    }
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
 
     // Trip schema has no driver relation; fetch drivers manually
     const tripsRaw = await db.trip.findMany({
@@ -50,24 +43,19 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/admin/cancellation-requests
-// Body: { tripId, adminId, action: "approve" | "reject", adminNote? }
-// - approve: cancel the trip
-// - reject: keep trip ongoing, clear cancellationRequest
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { tripId, adminId, action, adminNote } = body;
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
 
-    if (!tripId || !adminId || !action) {
+    const body = await request.json();
+    const { tripId, action, adminNote } = body;
+
+    if (!tripId || !action) {
       return NextResponse.json(
-        { error: "tripId, adminId, action مطلوبة" },
+        { error: "tripId, action مطلوبة" },
         { status: 400 }
       );
-    }
-
-    const admin = await db.user.findUnique({ where: { id: adminId } });
-    if (!admin || !admin.isAdmin) {
-      return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
     }
 
     const trip = await db.trip.findUnique({ where: { id: tripId } });

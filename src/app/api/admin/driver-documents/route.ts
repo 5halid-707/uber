@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
-// GET /api/admin/driver-documents?driverId=xxx&adminId=xxx
-// - Returns driver record with all documents
+// GET /api/admin/driver-documents
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const driverId = searchParams.get("driverId");
-    const adminId = searchParams.get("adminId");
 
     if (!driverId) {
       return NextResponse.json({ error: "driverId مطلوب" }, { status: 400 });
-    }
-
-    if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin || !admin.isAdmin) {
-        return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
-      }
     }
 
     const driver = await db.driver.findUnique({

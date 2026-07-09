@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const adminId = searchParams.get("adminId");
-    if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin?.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-    }
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
     const coupons = await db.coupon.findMany({ orderBy: { createdAt: "desc" } });
     return NextResponse.json(coupons);
   } catch (error) {
@@ -18,8 +15,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { user: adminUser, error: authError } = verifyAdmin(request);
+    if (!adminUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const body = await request.json();
-    const { code, type, value, minTripPrice, maxUses, expiresAt, createdById, appliedToId } = body;
+    const { code, type, value, minTripPrice, maxUses, expiresAt, appliedToId } = body;
 
     if (!code || !value) return NextResponse.json({ error: "بيانات ناقصة" }, { status: 400 });
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         minTripPrice: parseFloat(minTripPrice) || 0,
         maxUses: parseInt(maxUses) || 1,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
-        createdById: createdById || null,
+        createdById: adminUser.userId,
         appliedToId: appliedToId || null,
       },
     });

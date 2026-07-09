@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
-// GET /api/admin/trips?adminId=xxx&limit=50
-// - Returns all trips (with related user/driver) for admin overview
+// GET /api/admin/trips
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
-    const adminId = searchParams.get("adminId");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 500);
     const status = searchParams.get("status");
-
-    if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin || !admin.isAdmin) {
-        return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
-      }
-    }
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
 // POST /api/admin/block
-// Body: { userId, adminId, action: "block" | "unblock", reason?, notes? }
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, adminId, action, reason, notes } = body;
+    const { user: adminUser, error: authError } = verifyAdmin(request);
+    if (!adminUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
 
-    if (!userId || !adminId || !action) {
+    const body = await request.json();
+    const { userId, action, reason, notes } = body;
+
+    if (!userId || !action) {
       return NextResponse.json(
-        { error: "userId, adminId, action مطلوبة" },
+        { error: "userId, action مطلوبة" },
         { status: 400 }
       );
     }
@@ -20,11 +23,6 @@ export async function POST(request: NextRequest) {
         { error: "action يجب أن تكون block أو unblock" },
         { status: 400 }
       );
-    }
-
-    const admin = await db.user.findUnique({ where: { id: adminId } });
-    if (!admin || !admin.isAdmin) {
-      return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
     }
 
     const target = await db.user.findUnique({ where: { id: userId } });

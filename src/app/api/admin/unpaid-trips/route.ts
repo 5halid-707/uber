@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
-// GET /api/admin/unpaid-trips?adminId=xxx
-// - Lists trips where unpaidAmount > 0
+// GET /api/admin/unpaid-trips
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const adminId = searchParams.get("adminId");
-
-    if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin || !admin.isAdmin) {
-        return NextResponse.json({ error: "غير مصرح لك" }, { status: 403 });
-      }
-    }
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
 
     // Trip schema has no driver relation; fetch drivers manually
     const tripsRaw = await db.trip.findMany({

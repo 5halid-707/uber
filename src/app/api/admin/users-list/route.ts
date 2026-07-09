@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAdmin } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const adminId = searchParams.get("adminId");
-    const filter = searchParams.get("filter") || "all";
+    const { user, error: authError } = verifyAdmin(request);
+    if (!user) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
 
-    if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin?.isAdmin) {
-        return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-      }
-    }
+    const { searchParams } = new URL(request.url);
+    const filter = searchParams.get("filter") || "all";
 
     let where: any = {};
     if (filter === "blocked") where = { isBlocked: true };
