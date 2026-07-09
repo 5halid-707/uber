@@ -1789,6 +1789,9 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
 
   if (!user?.isAdmin) return (<div className="max-w-md mx-auto px-4 py-20 text-center"><Shield className="w-16 h-16 mx-auto text-zinc-300 mb-4" /><h2 className="text-2xl font-bold text-black mb-2">{lang === "ar" ? "صلاحية مرفوضة" : "Access Denied"}</h2></div>);
 
+  const getDriverName = (d: any) => d?.user?.name || d?.name || (lang === "ar" ? "بدون اسم" : "No name");
+  const getTripDriverName = (t: any) => { const drv = t.driver; if (!drv) return lang === "ar" ? "بدون سائق" : "No driver"; if (drv.user?.name) return drv.user.name; if (drv.name) return drv.name; return lang === "ar" ? "سائق" : "Driver"; };
+
   const tabs = [{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang), badge: pendingDrivers.length }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "users", l: lang === "ar" ? "المستخدمون" : "Users" }, { id: "earnings", l: lang === "ar" ? "الإيرادات" : "Earnings" }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints", badge: complaints.length }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang), badge: cancellations.length }, { id: "unpaid", l: lang === "ar" ? "غير مدفوع" : "Unpaid" }];
 
   return (
@@ -1813,56 +1816,74 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
       {tab === "drivers" && (
         <div className="space-y-3">
           {pendingDrivers.map((d) => (
-            <Card key={d.id} className="p-4 border-zinc-200">
+            <Card key={d.id} className="p-4 border-zinc-200 hover:shadow-lg transition-shadow">
               <div className="flex items-start gap-3 mb-3">
-                <Avatar className="w-14 h-14 cursor-pointer" onClick={() => setSelectedDriver(d)}><AvatarFallback>{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
-                <div className="flex-1">
-                  <div className="font-bold text-black cursor-pointer hover:underline" onClick={() => setSelectedDriver(d)}>{d.user?.name}</div>
+                <Avatar className="w-14 h-14 cursor-pointer" onClick={() => setSelectedDriver(d)}><AvatarFallback className="bg-amber-100 text-amber-700">{d.user?.name?.charAt(0) || "؟"}</AvatarFallback></Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-black cursor-pointer hover:text-amber-600 transition-colors" onClick={() => setSelectedDriver(d)}>{d.user?.name}</div>
                   <div className="text-sm text-zinc-500">{d.carModel} • {d.carPlate} • {d.carColor}</div>
-                  <div className="text-xs text-zinc-400">{d.user?.email} • {d.user?.phone}</div>
+                  <div className="text-xs text-zinc-400 truncate">{d.user?.email} • {d.user?.phone}</div>
                 </div>
-                <Badge variant="secondary">⏳</Badge>
+                <Badge className="bg-amber-100 text-amber-700 border-amber-200">⏳ {lang === "ar" ? "معلق" : "Pending"}</Badge>
               </div>
-              <div className="bg-zinc-50 rounded-lg p-3 mb-3 text-sm space-y-1">
-                <div><span className="text-zinc-500">{lang === "ar" ? "رقم الرخصة" : "License"}:</span> <span className="font-mono">{d.licenseNumber}</span></div>
-                {d.carYear && <div><span className="text-zinc-500">{lang === "ar" ? "سنة الصنع" : "Year"}:</span> {d.carYear}</div>}
-                <div><span className="text-zinc-500">{lang === "ar" ? "تاريخ التسجيل" : "Registered"}:</span> {new Date(d.createdAt).toLocaleString("ar-SA")}</div>
+              <div className="bg-gradient-to-br from-zinc-50 to-white rounded-lg p-3 mb-3 text-sm space-y-1 border border-zinc-100">
+                <div className="flex justify-between"><span className="text-zinc-500">{lang === "ar" ? "رقم الرخصة" : "License"}:</span> <span className="font-mono font-medium">{d.licenseNumber}</span></div>
+                {d.carYear && <div className="flex justify-between"><span className="text-zinc-500">{lang === "ar" ? "سنة الصنع" : "Year"}:</span> <span>{d.carYear}</span></div>}
+                <div className="flex justify-between"><span className="text-zinc-500">{lang === "ar" ? "تاريخ التسجيل" : "Registered"}:</span> <span>{new Date(d.createdAt).toLocaleString("ar-SA")}</span></div>
               </div>
               {d.documents && d.documents.length > 0 && (
                 <div className="mb-3">
-                  <div className="text-xs text-zinc-500 mb-2">{lang === "ar" ? "الوثائق" : "Documents"} ({d.documents.length})</div>
+                  <div className="text-xs text-zinc-500 mb-2 flex items-center gap-2"><span className="font-medium">{lang === "ar" ? "الوثائق" : "Documents"}</span><span className="bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full text-[10px]">{d.documents.length}</span></div>
                   <div className="flex gap-2 flex-wrap">
-                    {d.documents.map((doc: any) => (<div key={doc.id} className="border rounded-lg p-2 text-xs"><div className="font-medium mb-1">{doc.type}</div>{doc.fileData ? <img src={doc.fileData} alt={doc.fileName} className="w-20 h-20 object-cover rounded cursor-pointer" onClick={() => window.open(doc.fileData, "_blank")} /> : <div className="text-blue-600">{doc.fileName}</div>}</div>))}
+                    {d.documents.map((doc: any) => (<div key={doc.id} className="border rounded-lg p-1.5 text-xs bg-white hover:shadow-md transition-shadow"><div className="font-medium mb-1 px-1 text-zinc-700">{doc.type}</div>{doc.fileData ? <img src={doc.fileData} alt={doc.fileName} className="w-24 h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(doc.fileData, "_blank")} /> : <div className="text-blue-600 p-2">{doc.fileName}</div>}</div>))}
                   </div>
                 </div>
               )}
-              <div className="flex gap-2">
-                <Button onClick={() => approveDriver(d.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">✅ {t("admin.approve", lang)}</Button>
-                <Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">❌ {t("admin.rejectBtn", lang)}</Button>
+              <div className="flex gap-2 mt-3">
+                <Button onClick={() => approveDriver(d.id, "approve")} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-sm h-11">✅ {t("admin.approve", lang)}</Button>
+                <Button onClick={() => approveDriver(d.id, "reject")} variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50 h-11">❌ {t("admin.rejectBtn", lang)}</Button>
               </div>
             </Card>
           ))}
-          {pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noPending", lang)}</Card>}
+          {pendingDrivers.length === 0 && <Card className="p-12 text-center text-zinc-500 border-dashed"><div className="text-4xl mb-3">🎉</div>{t("admin.noPending", lang)}</Card>}
         </div>
       )}
 
       {tab === "trips" && (
         <div>
           <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-            {["all","pending","accepted","driver_arrived","ongoing","completed","cancelled"].map(s => <Button key={s} size="sm" variant={tripFilter === s ? "default" : "outline"} onClick={() => setTripFilter(s)} className={tripFilter === s ? "bg-black hover:bg-zinc-800" : ""}>{s === "all" ? (lang === "ar" ? "الكل" : "All") : s}</Button>)}
+            {["all","pending","accepted","driver_arrived","ongoing","completed","cancelled"].map(s => {
+              const statusColors: Record<string, string> = { all: "", pending: "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200", accepted: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200", driver_arrived: "bg-cyan-100 text-cyan-700 border-cyan-200 hover:bg-cyan-200", ongoing: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200", completed: "bg-green-100 text-green-700 border-green-200 hover:bg-green-200", cancelled: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200" };
+              return <Button key={s} size="sm" variant={tripFilter === s ? "default" : "outline"} onClick={() => setTripFilter(s)} className={`${tripFilter === s ? "bg-black hover:bg-zinc-800 text-white" : statusColors[s] || ""}`}>{s === "all" ? (lang === "ar" ? "الكل" : "All") : s}</Button>;
+            })}
           </div>
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
-            {allTrips.filter(trip => tripFilter === "all" || trip.status === tripFilter).map(trip => (
-              <Card key={trip.id} className="p-3 border-zinc-200 cursor-pointer hover:shadow-md" onClick={() => setSelectedTrip(trip)}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="font-bold text-black text-sm">{trip.user?.name || "?"} → {trip.driver?.name || (lang === "ar" ? "بدون سائق" : "No driver")}</div>
-                  <Badge variant={trip.status === "completed" ? "default" : trip.status === "cancelled" ? "destructive" : "secondary"} className={trip.status === "completed" ? "bg-green-600" : ""}>{trip.status}</Badge>
-                </div>
-                <div className="text-xs text-zinc-500">{trip.fromAddress} ← {trip.toAddress}</div>
-                <div className="flex justify-between mt-1 text-xs"><span className="text-zinc-400">{new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span><span className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</span></div>
-              </Card>
-            ))}
-            {allTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد رحلات" : "No trips"}</Card>}
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+            {allTrips.filter(trip => tripFilter === "all" || trip.status === tripFilter).map(trip => {
+              const statusBadge: Record<string, { label: string; color: string }> = { pending: { label: lang === "ar" ? "بانتظار السائق" : "Pending", color: "bg-amber-500" }, accepted: { label: lang === "ar" ? "تم القبول" : "Accepted", color: "bg-blue-500" }, driver_arrived: { label: lang === "ar" ? "السائق وصل" : "Driver Arrived", color: "bg-cyan-500" }, ongoing: { label: lang === "ar" ? "قيد التنفيذ" : "Ongoing", color: "bg-purple-500" }, completed: { label: lang === "ar" ? "مكتملة" : "Completed", color: "bg-green-600" }, cancelled: { label: lang === "ar" ? "ملغاة" : "Cancelled", color: "bg-red-500" } };
+              const sb = statusBadge[trip.status] || statusBadge.pending;
+              const driverName = getTripDriverName(trip);
+              return (
+                <Card key={trip.id} className="p-4 border-zinc-200 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5" onClick={() => setSelectedTrip(trip)}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Avatar className="w-10 h-10 shrink-0"><AvatarFallback className="bg-zinc-800 text-white text-sm">{trip.user?.name?.charAt(0) || "?"}</AvatarFallback></Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-black text-sm truncate">{trip.user?.name || "?"} → {driverName}</div>
+                      <div className="text-[11px] text-zinc-400 truncate">{trip.fromAddress} ← {trip.toAddress}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-black">{trip.finalPrice || trip.price} ر.س</div>
+                      <Badge className={`${sb.color} text-white text-[10px]`}>{sb.label}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+                    <span>📅 {new Date(trip.createdAt).toLocaleDateString("ar-SA")}</span>
+                    <span>📏 {trip.distance} كم</span>
+                    <span>⏱ {trip.duration} د</span>
+                  </div>
+                </Card>
+              );
+            })}
+            {allTrips.length === 0 && <Card className="p-12 text-center text-zinc-500 border-dashed"><div className="text-4xl mb-3">🚗</div>{lang === "ar" ? "لا توجد رحلات" : "No trips"}</Card>}
           </div>
         </div>
       )}
