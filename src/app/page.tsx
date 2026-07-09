@@ -1522,7 +1522,18 @@ function DriverRegisterView({ user, lang }: { user: User | null; lang: Lang }) {
   const handleFile = (file: File, docType: string) => {
     if (file.size > 5 * 1024 * 1024) { toast({ title: lang === "ar" ? "الملف كبير جداً" : "File too large", variant: "destructive" }); return; }
     const reader = new FileReader();
-    reader.onload = () => { setDocs((p) => ({ ...p, [docType]: reader.result as string })); };
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) { const r = Math.min(MAX / w, MAX / h); w *= r; h *= r; }
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        const ctx = c.getContext("2d")!; ctx.drawImage(img, 0, 0, w, h);
+        setDocs((p) => ({ ...p, [docType]: c.toDataURL("image/jpeg", 0.7) }));
+      };
+      img.src = reader.result as string;
+    };
     reader.readAsDataURL(file);
   };
 
@@ -1530,7 +1541,7 @@ function DriverRegisterView({ user, lang }: { user: User | null; lang: Lang }) {
     if (!user) return;
     setLoading(true);
     try {
-      const documents = Object.entries(docs).map(([type, fileData]) => ({ type, fileName: `${type}.jpg`, fileData, mimeType: "image/jpeg", fileSize: fileData.length }));
+      const documents = Object.entries(docs).map(([type, fileData]) => ({ type, fileName: `${type}.jpg`, fileData, mimeType: "image/jpeg", fileSize: Math.round(fileData.length / 1.37) }));
       const res = await fetch("/api/drivers/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, carModel: car.model, carPlate: car.plate, carColor: car.color, carYear: car.year, licenseNumber: license.number, licenseExpiry: license.expiry, documents }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
