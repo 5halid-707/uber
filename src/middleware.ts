@@ -23,10 +23,11 @@ export function middleware(req: NextRequest) {
   if (!checkRateLimit(ip)) return NextResponse.json({ error: "تجاوزت الحد المسموح" }, { status: 429 });
   if (PUBLIC_API_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"))) return NextResponse.next();
   const authHeader = req.headers.get("authorization");
-  let token: string | null = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : req.headers.get("x-auth-token") || new URL(req.url).searchParams.get("token");
+  let token: string | null = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  // For admin routes, verify token inline
   if (ADMIN_API_ROUTES.some((r) => pathname.startsWith(r))) {
     if (!token) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-    try { const p = jwt.verify(token, JWT_SECRET) as { isAdmin: boolean }; if (!p.isAdmin) return NextResponse.json({ error: "يتطلب صلاحيات إدارية" }, { status: 403 }); } catch { return NextResponse.json({ error: "جلسة منتهية" }, { status: 401 }); }
+    try { const p = jwt.verify(token, JWT_SECRET) as { isAdmin: boolean }; if (!p.isAdmin) return NextResponse.json({ error: "يتطلب صلاحيات إدارية" }, { status: 403 }); } catch (e) { console.error("JWT verify error:", e); return NextResponse.json({ error: "جلسة منتهية" }, { status: 401 }); }
   }
   if (DRIVER_API_ROUTES.some((r) => pathname.startsWith(r))) { if (!token) return NextResponse.json({ error: "غير مصرح" }, { status: 401 }); try { jwt.verify(token, JWT_SECRET); } catch { return NextResponse.json({ error: "جلسة منتهية" }, { status: 401 }); } }
   const response = NextResponse.next();
@@ -37,4 +38,6 @@ export function middleware(req: NextRequest) {
   return response;
 }
 
+// TEMP DEBUG: log the pathname and auth header
+const tmpPath = ""; // dummy
 export const config = { matcher: ["/api/:path*"] };
