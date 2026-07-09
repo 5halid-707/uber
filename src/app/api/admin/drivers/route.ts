@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
             createdAt: true,
           },
         },
-        _count: { select: { documents: true } },
+        documents: { orderBy: { uploadedAt: "desc" } },
       },
       orderBy: { createdAt: "desc" },
     });
