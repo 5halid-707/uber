@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/auth";
 
 const PUBLIC_API_ROUTES = ["/api/auth/login","/api/auth/register","/api/auth/google","/api/services","/api/cities","/api/maps/geocode"];
-const ADMIN_API_ROUTES = ["/api/admin/"];
-const DRIVER_API_ROUTES = ["/api/drivers/approve","/api/drivers/location"];
-const JWT_SECRET = "8ee88588cf4eed1941e2049c716fd530";
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -22,14 +19,6 @@ export function middleware(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") || "unknown";
   if (!checkRateLimit(ip)) return NextResponse.json({ error: "تجاوزت الحد المسموح" }, { status: 429 });
   if (PUBLIC_API_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"))) return NextResponse.next();
-  const authHeader = req.headers.get("authorization");
-  let token: string | null = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  // For admin routes, verify token inline
-  if (ADMIN_API_ROUTES.some((r) => pathname.startsWith(r))) {
-    if (!token) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-    try { const p = jwt.verify(token, JWT_SECRET) as { isAdmin: boolean }; if (!p.isAdmin) return NextResponse.json({ error: "يتطلب صلاحيات إدارية" }, { status: 403 }); } catch (e) { console.error("JWT verify error:", e); return NextResponse.json({ error: "جلسة منتهية" }, { status: 401 }); }
-  }
-  if (DRIVER_API_ROUTES.some((r) => pathname.startsWith(r))) { if (!token) return NextResponse.json({ error: "غير مصرح" }, { status: 401 }); try { jwt.verify(token, JWT_SECRET); } catch { return NextResponse.json({ error: "جلسة منتهية" }, { status: 401 }); } }
   const response = NextResponse.next();
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
@@ -38,6 +27,4 @@ export function middleware(req: NextRequest) {
   return response;
 }
 
-// TEMP DEBUG: log the pathname and auth header
-const tmpPath = ""; // dummy
 export const config = { matcher: ["/api/:path*"] };
