@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { NextRequest } from "next/server";
 
+const TOKEN_EXPIRY = "7d";
 const JWT_SECRET = "8ee88588cf4eed1941e2049c716fd530";
 export interface JwtPayload {
   userId: string;
