@@ -18,20 +18,16 @@ export async function POST(request: NextRequest) {
       try { await db.trip.update({ where: { id: tripId }, data: { rating: ratingVal, review: reviewText } }); } catch {}
     }
 
-    // Update user rating (average)
     const targetUser = await db.user.findUnique({ where: { id: toUserId } });
-    if (targetUser) {
-      const newTripsCount = targetUser.tripsCount + 1;
-      const newRating = ((targetUser.rating * targetUser.tripsCount) + ratingVal) / newTripsCount;
-      await db.user.update({ where: { id: toUserId }, data: { rating: Math.round(newRating * 10) / 10, tripsCount: newTripsCount } });
+    if (targetUser && targetUser.tripsCount > 0) {
+      const newRating = ((targetUser.rating * targetUser.tripsCount) + ratingVal) / (targetUser.tripsCount + 1);
+      await db.user.update({ where: { id: toUserId }, data: { rating: Math.round(newRating * 10) / 10 } });
     }
 
-    // If target is a driver, update driver rating too
     const driver = await db.driver.findUnique({ where: { userId: toUserId } });
-    if (driver) {
-      const newTripsCount = driver.tripsCount + 1;
-      const newRating = ((driver.rating * driver.tripsCount) + ratingVal) / newTripsCount;
-      await db.driver.update({ where: { userId: toUserId }, data: { rating: Math.round(newRating * 10) / 10, tripsCount: newTripsCount } });
+    if (driver && driver.tripsCount > 0) {
+      const newRating = ((driver.rating * driver.tripsCount) + ratingVal) / (driver.tripsCount + 1);
+      await db.driver.update({ where: { userId: toUserId }, data: { rating: Math.round(newRating * 10) / 10 } });
     }
 
     // Notify admin

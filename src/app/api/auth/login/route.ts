@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signToken } from "@/lib/auth";
+import { loginSchema } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { identifier, password } = body;
-
-    if (!identifier || !password) {
-      return NextResponse.json({ error: "البريد/الجوال وكلمة المرور مطلوبة" }, { status: 400 });
-    }
+    const parsed = loginSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    const { identifier, password } = parsed.data;
 
     const user = await db.user.findFirst({
       where: { OR: [{ email: identifier }, { phone: identifier }] },

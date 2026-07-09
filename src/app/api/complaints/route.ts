@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAuth } from "@/lib/auth";
 
-// GET: Get complaints for a user or all (admin)
 export async function GET(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     const adminId = searchParams.get("adminId");
 
     let where: any = {};
     if (adminId) {
-      const admin = await db.user.findUnique({ where: { id: adminId } });
-      if (!admin?.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-      // Admin sees ALL complaints
+      if (!authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
     } else if (userId) {
-      // User sees only their complaints
+      if (userId !== authUser.userId) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
       where = { OR: [{ fromUserId: userId }, { againstUserId: userId }] };
     }
 
@@ -31,15 +32,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Submit a complaint
 export async function POST(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const body = await request.json();
     const { fromUserId, againstUserId, subject, description, tripId } = body;
 
     if (!fromUserId || !subject || !description) {
       return NextResponse.json({ error: "بيانات ناقصة" }, { status: 400 });
     }
+    if (fromUserId !== authUser.userId) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     // Create complaint as a notification to all admins
     const admins = await db.user.findMany({ where: { isAdmin: true } });

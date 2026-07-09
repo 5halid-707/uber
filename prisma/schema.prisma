@@ -75,6 +75,10 @@ model DriverDocument {
   mimeType      String?
   status        String   @default("pending")
   uploadedAt    DateTime @default(now())
+
+  @@index([driverId])
+  @@index([type])
+  @@index([status])
 }
 
 model Trip {
@@ -129,6 +133,13 @@ model Trip {
   
   createdAt     DateTime @default(now())
   acceptedAt    DateTime?
+
+  @@index([userId])
+  @@index([driverId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([driverId, status])
 }
 
 model Transaction {
@@ -141,6 +152,11 @@ model Transaction {
   status        String   @default("completed")
   tripId        String?
   createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([tripId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model BankAccount {
@@ -156,6 +172,8 @@ model BankAccount {
   isDefault     Boolean  @default(false)
   isVerified    Boolean  @default(false)
   createdAt     DateTime @default(now())
+
+  @@index([userId])
 }
 
 model ChatMessage {
@@ -169,6 +187,11 @@ model ChatMessage {
   fileName      String?
   isRead        Boolean  @default(false)
   createdAt     DateTime @default(now())
+
+  @@index([tripId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([tripId, senderId])
 }
 
 model Notification {
@@ -180,6 +203,39 @@ model Notification {
   type          String   @default("system")
   isRead        Boolean  @default(false)
   createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model ServicePrice {
+  id        String   @id @default(cuid())
+  serviceId String   @unique
+  name      String
+  basePrice Float    @default(8)
+  perKm     Float    @default(1.5)
+  perMin    Float    @default(0.25)
+  minPrice  Float    @default(12)
+  seats     Int      @default(4)
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@index([serviceId])
+  @@index([isActive])
+}
+
+model SiteSettings {
+  id              String  @id @default("default")
+  commissionRate  Float   @default(15)
+  vatRate         Float   @default(15)
+  freeWaitingMin  Int     @default(5)
+  lateFeePerMin   Float   @default(1)
+  supportPhone    String  @default("0575015019")
+  supportEmail    String  @default("support@uber.sa")
+  adminEmail      String  @default("grouthhacker@gmail.com")
+  updatedAt       DateTime @updatedAt
 }
 
 model Coupon {
@@ -195,4 +251,8 @@ model Coupon {
   createdById String?  // admin who created
   appliedToId String?  // user it's applied to
   createdAt   DateTime @default(now())
+
+  @@index([code])
+  @@index([isActive])
+  @@index([expiresAt])
 }

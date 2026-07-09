@@ -27,8 +27,7 @@ export function extractToken(req: NextRequest): string | null {
   if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
   const xToken = req.headers.get("x-auth-token");
   if (xToken) return xToken;
-  const url = new URL(req.url);
-  return url.searchParams.get("token");
+  return null;
 }
 
 export function verifyAuth(req: NextRequest): { user: JwtPayload | null; error?: string } {

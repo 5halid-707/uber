@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { registerSchema } from "@/lib/validation";
+import { sendEmail, welcomeEmail, getAdminEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, phone, password, city, region } = body;
-
-    if (!name || !email || !phone || !password) {
-      return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 });
-    }
+    const parsed = registerSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    const { name, email, phone, password, city } = parsed.data;
+    const region = body.region || null;
 
     const existing = await db.user.findFirst({ where: { OR: [{ email }, { phone }] } });
     if (existing) {
@@ -27,6 +28,13 @@ export async function POST(req: NextRequest) {
 
     await db.transaction.create({
       data: { userId: user.id, type: "bonus", amount: 50, description: "هدية الترحيب", status: "completed" },
+    });
+
+    sendEmail(welcomeEmail({ username: user.name, email: user.email }));
+    getAdminEmail().then(adminEmail => {
+      sendEmail(newUserRegistrationEmail(adminEmail, {
+        username: user.name, email: user.email, phone: user.phone, city: user.city, createdAt: user.createdAt,
+      }));
     });
 
     return NextResponse.json({ id: user.id, name: user.name, email: user.email, phone: user.phone, walletBalance: user.walletBalance, isAdmin: user.isAdmin, isDriver: user.isDriver, isVerified: user.isVerified, rating: user.rating, tripsCount: user.tripsCount });

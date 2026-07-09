@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Globe, MapPin, Navigation, Clock, Star, Wallet, Shield, LogIn, User, Home, Car, MessageCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { LogOut, Globe, MapPin, Navigation, Clock, Star, Wallet, Shield, LogIn, User, Home, Car, MessageCircle, AlertTriangle, RefreshCw, Settings } from "lucide-react";
 import { useLang } from "@/lib/use-lang";
 import { t, type Lang } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -30,6 +30,16 @@ type Trip = { id: string; userId: string; driverId?: string | null; serviceType:
 type View = "home" | "ride" | "trips" | "driver" | "driver-register" | "bank" | "profile" | "admin";
 const STORAGE_KEY = "uber_user";
 
+// ===== GLOBAL HELPERS =====
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("uber_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+function authFetch(url: string, opts?: RequestInit) {
+  return fetch(url, { ...opts, headers: { ...getAuthHeaders(), ...opts?.headers } });
+}
+
 // ===== MAIN PAGE =====
 export default function Page() {
   const [user, setUser] = useState<User | null>(null);
@@ -37,6 +47,9 @@ export default function Page() {
   const [view, setView] = useState<View>("home");
   const [authOpen, setAuthOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { lang, setLang } = useLang();
   const { toast } = useToast();
 
@@ -78,7 +91,46 @@ export default function Page() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
  }, [user, lang, toast]);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const fetchNotifs = async () => {
+      try {
+        const res = await authFetch("/api/notifications?limit=20&unreadOnly=true");
+        if (!cancelled && res.ok) {
+          const d = await res.json();
+          const newNotifs = d.notifications || [];
+          setNotifications(prev => {
+            if (newNotifs.length > prev.length && prev.length > 0) {
+              const added = newNotifs.filter(n => !prev.find(p => p.id === n.id));
+              added.forEach(n => {
+                if ("Notification" in window && Notification.permission === "granted") {
+                  try { new Notification("🔔 " + n.title, { body: n.message, icon: "/favicon.ico" }); } catch {}
+                }
+              });
+            }
+            return newNotifs;
+          });
+          setUnreadCount(d.unreadCount || 0);
+        }
+      } catch {}
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user]);
 
+  // Request notification permission on user interaction
+  useEffect(() => {
+    const handler = () => {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+      document.removeEventListener("click", handler);
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
 
   const handleLogout = useCallback(() => { saveUser(null); setView("home"); setTimeout(() => toast({ title: lang === "ar" ? "تم تسجيل الخروج" : "Logged out" }), 0); }, [saveUser, toast, lang]);
   const handleAuthSuccess = useCallback((u: User) => { saveUser(u); setAuthOpen(false); if (u.isDriver && !u.isAdmin) { setView("driver"); } else if (u.isAdmin) { setView("admin"); } else { setView("home"); } setTimeout(() => toast({ title: `${lang === "ar" ? "مرحباً" : "Welcome"} ${u.name} 👋` }), 0); }, [saveUser, toast, lang]);
@@ -144,6 +196,10 @@ export default function Page() {
               <LanguageSwitcher lang={lang} setLang={setLang} />
               {user && user.name ? (
                 <>
+                  <button onClick={() => setNotifOpen(true)} className="relative p-2 hover:bg-zinc-800 rounded-lg" aria-label="Notifications">
+                    <span className="text-lg">🔔</span>
+                    {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 rounded-full text-[10px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+                  </button>
                   <button onClick={() => navigate("profile")} className="flex items-center gap-2 hover:bg-zinc-800 rounded-lg p-1 pr-2">
                     <Avatar className="w-8 h-8"><AvatarFallback className="bg-zinc-700 text-sm">{(user.name || "?").charAt(0)}</AvatarFallback></Avatar>
                     <span className="text-sm">{(user.name || "").split(" ")[0]}</span>
@@ -223,7 +279,80 @@ export default function Page() {
       </nav>
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onSuccess={handleAuthSuccess} lang={lang} />
+      <NotificationsDialog open={notifOpen} onOpenChange={setNotifOpen} userId={user?.id || ""} lang={lang} onRead={(id) => {
+        if (id === "all") { setNotifications([]); setUnreadCount(0); }
+        else { setNotifications(p => p.filter(n => n.id !== id)); setUnreadCount(p => Math.max(0, p - 1)); }
+      }} />
     </div>
+  );
+}
+
+// ===== NOTIFICATIONS DIALOG =====
+function NotificationsDialog({ open, onOpenChange, userId, lang, onRead }: {
+  open: boolean; onOpenChange: (o: boolean) => void; userId: string; lang: Lang; onRead: (id: string) => void;
+}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !userId) return;
+    setLoading(true);
+    authFetch("/api/notifications?limit=50").then(r => r.json()).then(d => {
+      setItems(d.notifications || []);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [open, userId]);
+
+  const markRead = async (id?: string) => {
+    await authFetch("/api/notifications/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(id ? { notificationId: id } : { all: true }) });
+    if (id) {
+      setItems(p => p.map(n => n.id === id ? { ...n, isRead: true } : n));
+      onRead(id);
+    } else {
+      setItems(p => p.map(n => ({ ...n, isRead: true })));
+      onRead("all");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{lang === "ar" ? "الإشعارات" : "Notifications"}</DialogTitle>
+          <DialogDescription>{lang === "ar" ? "جميع الإشعارات الخاصة بك" : "All your notifications"}</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+          {loading ? (
+            <div className="text-center py-8 text-zinc-500">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-8 text-zinc-500">{lang === "ar" ? "لا توجد إشعارات" : "No notifications"}</div>
+          ) : (
+            <>
+              {items.filter(n => !n.isRead).length > 0 && (
+                <button onClick={() => markRead()} className="w-full text-center text-sm text-blue-600 hover:text-blue-800 py-2 font-medium">
+                  {lang === "ar" ? "تحديد الكل كمقروء" : "Mark all as read"}
+                </button>
+              )}
+              {items.map((n) => (
+                <div key={n.id} className={`p-3 rounded-lg border ${n.isRead ? "border-zinc-100 bg-white" : "border-blue-200 bg-blue-50"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm ${n.isRead ? "text-black" : "text-black font-bold"}`}>{n.title}</div>
+                      {n.message && <div className="text-xs text-zinc-500 mt-1 line-clamp-2">{n.message}</div>}
+                      <div className="text-[10px] text-zinc-400 mt-1">{new Date(n.createdAt).toLocaleString("ar-SA")}</div>
+                    </div>
+                    {!n.isRead && (
+                      <button onClick={() => markRead(n.id)} className="text-xs text-blue-600 hover:text-blue-800 shrink-0 mt-1">
+                        {lang === "ar" ? "قراءة" : "Read"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -231,7 +360,6 @@ export default function Page() {
 function HomeView({ navigate, user, lang }: { navigate: (v: View) => void; user: User | null; lang: Lang }) {
   const services = serviceTypes.map((s) => ({ id: s.id, name: lang === "ar" ? s.name : t(`services.${s.id}`, lang), desc: s.desc, emoji: s.emoji }));
   const stats = [{ v: "+5M", l: t("home.stats.trips", lang) }, { v: "+50K", l: t("home.stats.drivers", lang) }, { v: "4.9", l: t("home.stats.rating", lang) }, { v: "13", l: t("home.stats.regions", lang) }];
-  const [city, setCity] = useState("الرياض");
   const [reserveDate, setReserveDate] = useState("");
   const [reserveTime, setReserveTime] = useState("");
   const [showReserve, setShowReserve] = useState(false);
@@ -642,7 +770,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
     if (step !== "tracking" || !activeTrip || !user) return;
     const poll = async () => {
       try {
-        const res = await fetch(`/api/trips?userId=${user.id}&activeOnly=true`);
+        const res = await authFetch(`/api/trips?userId=${user.id}&activeOnly=true`);
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           const trip = data[0];
@@ -789,7 +917,7 @@ function RideView({ user, lang }: { user: User | null; lang: Lang }) {
   const confirmBooking = async () => {
     if (!user) return;
     try {
-      const res = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, serviceType: selectedService, fromAddress: from, toAddress: to, distance: calc.distance, duration: calc.duration, price: finalPriceAfterCoupon || selectedPrice?.price, paymentMethod }) });
+      const res = await authFetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, serviceType: selectedService, fromAddress: from, toAddress: to, distance: calc.distance, duration: calc.duration, price: finalPriceAfterCoupon || selectedPrice?.price, paymentMethod }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setActiveTrip(data); setStep("tracking"); prevStatus.current = "pending";
@@ -947,27 +1075,54 @@ function ChatDialog({ open, onOpenChange, tripId, currentUserId, otherUserId, ot
   const prevMsgCount = useRef(0);
   const { toast } = useToast();
 
-  // Fetch messages + play sound on new
+  // Fetch messages via SSE or polling fallback
   useEffect(() => {
     if (!open || !tripId) return;
-    const fetchMessages = async () => {
+    let cancelled = false;
+    const lastMsgId = () => { try { const msgs = messages; return msgs.length > 0 ? msgs[msgs.length - 1]?.id : ""; } catch { return ""; } };
+    let eventSource: EventSource | null = null;
+
+    const fetchMessages = async (silent = false) => {
       try {
+        const since = lastMsgId();
         const res = await fetch(`/api/chat?tripId=${tripId}&userId=${currentUserId}`);
         const data = await res.json();
-        if (Array.isArray(data)) {
+        if (!cancelled && Array.isArray(data)) {
           setMessages(prev => {
             if (data.length > prev.length) {
-              // New messages arrived - play sound
-              if (prev.length > 0) safePlaySound(playMessageSound);
+              if (prev.length > 0 && !silent) safePlaySound(playMessageSound);
             }
             return data;
           });
         }
       } catch {}
     };
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 2000);
-    return () => clearInterval(interval);
+
+    try {
+      eventSource = new EventSource(`/api/chat/sse?tripId=${tripId}&userId=${currentUserId}`);
+      eventSource.onmessage = (e) => {
+        if (cancelled) return;
+        try {
+          const newMsgs = JSON.parse(e.data);
+          if (Array.isArray(newMsgs) && newMsgs.length > 0) {
+            setMessages(prev => {
+              if (prev.length > 0) safePlaySound(playMessageSound);
+              const existing = new Set(prev.map(m => m.id));
+              const merged = [...prev, ...newMsgs.filter((m: any) => !existing.has(m.id))];
+              return merged;
+            });
+          }
+        } catch {}
+      };
+      eventSource.onerror = () => { eventSource?.close(); eventSource = null; };
+    } catch { eventSource = null; }
+
+    if (!eventSource) {
+      fetchMessages(true);
+      const interval = setInterval(fetchMessages, 2000);
+      return () => { cancelled = true; clearInterval(interval); eventSource?.close(); };
+    }
+    return () => { cancelled = true; eventSource?.close(); };
   }, [open, tripId, currentUserId]);
 
   // Fetch my avatar
@@ -1120,6 +1275,128 @@ function ComplaintDialog({ open, onOpenChange, fromUserId, againstUserId, agains
   );
 }
 
+// ===== ADMIN SETTINGS PANEL =====
+function AdminSettingsPanel({ user: _u, lang }: { user: User | null; lang: Lang }) {
+  const { toast } = useToast();
+  const [name, setName] = useState(_u?.name || "");
+  const [email, setEmail] = useState(_u?.email || "");
+  const [phone, setPhone] = useState(_u?.phone || "");
+  const [city, setCity] = useState(_u?.city || "");
+  const [newPassword, setNewPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [commissionRate, setCommissionRate] = useState("15");
+  const [vatRate, setVatRate] = useState("15");
+  const [freeWaitingMin, setFreeWaitingMin] = useState("5");
+  const [lateFeePerMin, setLateFeePerMin] = useState("1");
+  const [supportPhone, setSupportPhone] = useState("0575015019");
+  const [supportEmail, setSupportEmail] = useState("support@uber.sa");
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    authFetch("/api/admin/settings").then(r => r.json()).then(d => {
+      if (d.settings) {
+        setCommissionRate(String(d.settings.commissionRate));
+        setVatRate(String(d.settings.vatRate));
+        setFreeWaitingMin(String(d.settings.freeWaitingMin));
+        setLateFeePerMin(String(d.settings.lateFeePerMin));
+        setSupportPhone(d.settings.supportPhone || "");
+        setSupportEmail(d.settings.supportEmail || "");
+      }
+    }).catch(() => {}).finally(() => setSettingsLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    if (!currentPassword) { toast({ title: lang === "ar" ? "كلمة المرور الحالية مطلوبة" : "Current password required", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const res = await authFetch("/api/users/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, phone, city, currentPassword, newPassword: newPassword || undefined }) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
+      localStorage.setItem("uber_token", d.token || "");
+      toast({ title: "✅ " + (lang === "ar" ? "تم الحفظ" : "Saved") });
+    } catch (e) {
+      console.error("PATCH error:", e);
+      toast({ title: "❌ " + (lang === "ar" ? "فشل الحفظ" : "Failed"), description: String(e instanceof Error ? e.message : e), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const saveSettings = async (type: "platform" | "contact") => {
+    try {
+      const data: Record<string, any> = {};
+      if (type === "platform") {
+        data.commissionRate = parseFloat(commissionRate);
+        data.vatRate = parseFloat(vatRate);
+        data.freeWaitingMin = parseInt(freeWaitingMin);
+        data.lateFeePerMin = parseFloat(lateFeePerMin);
+      } else {
+        data.supportPhone = supportPhone;
+        data.supportEmail = supportEmail;
+      }
+      const res = await authFetch("/api/admin/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
+      toast({ title: "✅ " + (lang === "ar" ? "تم الحفظ" : "Saved") });
+    } catch (e) {
+      toast({ title: "❌ " + (lang === "ar" ? "فشل الحفظ" : "Failed"), description: String(e instanceof Error ? e.message : e), variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-3xl mx-auto">
+      <Card className="p-6 border-zinc-200">
+        <div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center"><User className="w-5 h-5 text-white" /></div><h3 className="text-xl font-bold text-black">{lang === "ar" ? "الملف الشخصي" : "Profile Settings"}</h3></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><Label>{lang === "ar" ? "الاسم" : "Name"}</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
+          <div><Label>{lang === "ar" ? "البريد الإلكتروني" : "Email"}</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" /></div>
+          <div><Label>{lang === "ar" ? "الجوال" : "Phone"}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" /></div>
+          <div><Label>{lang === "ar" ? "المدينة" : "City"}</Label><Input value={city} onChange={(e) => setCity(e.target.value)} className="mt-1" /></div>
+        </div>
+        <div className="mt-4"><Label>{lang === "ar" ? "كلمة مرور جديدة" : "New Password"}</Label><Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" className="mt-1" /></div>
+        <div className="mt-4"><Label className="text-red-600">{lang === "ar" ? "كلمة المرور الحالية (مطلوبة)" : "Current Password (required)"}</Label><Input value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} type="password" className="mt-1" /></div>
+        <Button onClick={handleSave} disabled={saving || settingsLoading} className="w-full bg-black hover:bg-zinc-800 h-12 mt-6">{saving ? (lang === "ar" ? "جارٍ الحفظ..." : "Saving...") : (lang === "ar" ? "حفظ التغييرات" : "Save Changes")}</Button>
+      </Card>
+
+      <Card className="p-6 border-zinc-200">
+        <div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center"><Settings className="w-5 h-5 text-white" /></div><h3 className="text-xl font-bold text-black">{lang === "ar" ? "إعدادات المنصة" : "Platform Settings"}</h3></div>
+        {settingsLoading ? (
+          <div className="text-center py-4 text-zinc-500">{lang === "ar" ? "جارٍ التحميل..." : "Loading..."}</div>
+        ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
+            <div><div className="font-medium text-black">{lang === "ar" ? "نسبة العمولة" : "Commission Rate"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "نسبة المنصة من كل رحلة" : "Platform cut from each trip"}</div></div>
+            <div className="flex items-center gap-2"><Input type="number" value={commissionRate} onChange={(e) => setCommissionRate(e.target.value)} className="w-20 text-center" /><span className="text-zinc-500">%</span></div>
+          </div>
+          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
+            <div><div className="font-medium text-black">{lang === "ar" ? "ضريبة القيمة المضافة" : "VAT"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "الضريبة المضافة على الرحلات" : "Value-added tax on trips"}</div></div>
+            <div className="flex items-center gap-2"><Input type="number" value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="w-20 text-center" /><span className="text-zinc-500">%</span></div>
+          </div>
+          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
+            <div><div className="font-medium text-black">{lang === "ar" ? "مدة انتظار مجانية" : "Free Waiting Minutes"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "دقائق مجانية قبل احتساب رسوم الانتظار" : "Free minutes before late fees"}</div></div>
+            <div className="flex items-center gap-2"><Input type="number" value={freeWaitingMin} onChange={(e) => setFreeWaitingMin(e.target.value)} className="w-20 text-center" /><span className="text-zinc-500">{lang === "ar" ? "دقيقة" : "min"}</span></div>
+          </div>
+          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-lg">
+            <div><div className="font-medium text-black">{lang === "ar" ? "رسوم الانتظار" : "Late Fee Per Minute"}</div><div className="text-sm text-zinc-500">{lang === "ar" ? "ريال لكل دقيقة انتظار بعد المدة المجانية" : "SAR per minute after free period"}</div></div>
+            <div className="flex items-center gap-2"><Input type="number" value={lateFeePerMin} onChange={(e) => setLateFeePerMin(e.target.value)} className="w-20 text-center" step="0.5" /><span className="text-zinc-500">{lang === "ar" ? "ريال/د" : "SAR/min"}</span></div>
+          </div>
+        </div>
+        )}
+        <Button onClick={() => saveSettings("platform")} disabled={settingsLoading} className="w-full bg-zinc-900 hover:bg-black h-12 mt-6">{lang === "ar" ? "حفظ إعدادات المنصة" : "Save Platform Settings"}</Button>
+      </Card>
+
+      <Card className="p-6 border-zinc-200">
+        <div className="flex items-center gap-3 mb-6"><div className="w-10 h-10 bg-green-900 rounded-xl flex items-center justify-center"><Shield className="w-5 h-5 text-white" /></div><h3 className="text-xl font-bold text-black">{lang === "ar" ? "معلومات الاتصال" : "Contact Info"}</h3></div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-lg"><span className="text-xl">📞</span><div><div className="font-medium text-black">{lang === "ar" ? "رقم الدعم" : "Support Phone"}</div><Input value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} className="mt-1" /></div></div>
+          <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-lg"><span className="text-xl">✉️</span><div><div className="font-medium text-black">{lang === "ar" ? "البريد الإلكتروني" : "Support Email"}</div><Input value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} className="mt-1" /></div></div>
+        </div>
+        <Button onClick={() => saveSettings("contact")} disabled={settingsLoading} className="w-full bg-green-700 hover:bg-green-800 h-12 mt-6">{lang === "ar" ? "حفظ معلومات الاتصال" : "Save Contact Info"}</Button>
+      </Card>
+    </div>
+  );
+}
+
 // ===== RATING DIALOG =====
 function RatingDialog({ open, onOpenChange, tripId, fromUserId, toUserId, targetName, ratedBy, lang }: {
   open: boolean; onOpenChange: (o: boolean) => void; tripId: string; fromUserId: string; toUserId: string; targetName: string; ratedBy: string; lang: Lang;
@@ -1182,7 +1459,7 @@ function TripsView({ user, lang }: { user: User | null; lang: Lang }) {
 
   useEffect(() => {
     if (!user) return;
-    fetch(`/api/trips?userId=${user.id}`).then((r) => r.json()).then((d) => { setTrips(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+    authFetch(`/api/trips?userId=${user.id}`).then((r) => r.json()).then((d) => { setTrips(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
   }, [user]);
 
   const filtered = trips.filter((t) => { if (filter === "all") return true; if (filter === "active") return ["pending", "accepted", "driver_arrived", "ongoing"].includes(t.status); return t.status === filter; });
@@ -1731,7 +2008,7 @@ function ProfileView({ user, lang, onLogout }: { user: User | null; lang: Lang; 
 
 // ===== ADMIN VIEW =====
 function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
-  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "users" | "earnings" | "complaints" | "coupons" | "cancellations" | "unpaid">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "drivers" | "trips" | "users" | "earnings" | "complaints" | "coupons" | "cancellations" | "unpaid" | "pricing" | "settings">("dashboard");
   const [complaints, setComplaints] = useState<any[]>([]);
   const [allTrips, setAllTrips] = useState<any[]>([]);
   const [tripFilter, setTripFilter] = useState("all");
@@ -1748,14 +2025,8 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [cancellations, setCancellations] = useState<any[]>([]);
   const [unpaidTrips, setUnpaidTrips] = useState<any[]>([]);
+  const [pricing, setPricing] = useState<any[]>([]);
   const { toast } = useToast();
-
-  const authHeaders = (): Record<string, string> => {
-    if (typeof window === "undefined") return {};
-    const token = localStorage.getItem("uber_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-  const authFetch = (url: string, opts?: RequestInit) => fetch(url, { ...opts, headers: { ...authHeaders(), ...opts?.headers } });
 
   const loadStats = useCallback(() => { authFetch("/api/admin/stats").then((r) => r.json()).then(setStats).catch(() => {}); }, []);
   const loadDrivers = useCallback(() => { authFetch("/api/admin/drivers?status=pending").then((r) => r.json()).then((d) => setPendingDrivers(Array.isArray(d.drivers) ? d.drivers : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
@@ -1767,6 +2038,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const loadCancellations = useCallback(() => { authFetch("/api/admin/cancellation-requests").then((r) => r.json()).then((d) => setCancellations(Array.isArray(d.trips) ? d.trips : (Array.isArray(d) ? d : []))).catch(() => {}); }, []);
   const loadUnpaid = useCallback(() => { authFetch("/api/admin/unpaid-trips").then((r) => r.json()).then((d) => setUnpaidTrips(d.trips || [])).catch(() => {}); }, []);
   const loadEarnings = useCallback(() => { if (user) fetch(`/api/wallet?userId=${user.id}`).then(r => r.json()).then(d => { const txs = Array.isArray(d.transactions) ? d.transactions : []; const commission = txs.filter((t: any) => t.type === "commission").reduce((s: number, t: any) => s + t.amount, 0); setEarnings({ totalRevenue: d.wallet?.balance || 0, totalCommission: commission, recentTransactions: txs.slice(0, 20) }); }).catch(() => {}); }, [user]);
+  const loadPricing = useCallback(() => { authFetch("/api/admin/pricing").then(r => r.json()).then(d => setPricing(Array.isArray(d.prices) ? d.prices : [])).catch(() => {}); }, []);
 
   useEffect(() => { loadStats(); loadDrivers(); loadApprovedDrivers(); }, [loadStats, loadDrivers, loadApprovedDrivers]);
   useEffect(() => { if (tab === "complaints") loadComplaints(); }, [tab, loadComplaints]);
@@ -1776,6 +2048,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   useEffect(() => { if (tab === "earnings") loadEarnings(); }, [tab, loadEarnings]);
   useEffect(() => { if (tab === "cancellations") loadCancellations(); }, [tab, loadCancellations]);
   useEffect(() => { if (tab === "unpaid") loadUnpaid(); }, [tab, loadUnpaid]);
+  useEffect(() => { if (tab === "pricing") loadPricing(); }, [tab, loadPricing]);
 
   const approveDriver = async (driverId: string, action: "approve" | "reject") => {
     try { await authFetch("/api/drivers/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId, action }) }); loadDrivers(); loadApprovedDrivers(); loadStats(); setTimeout(() => toast({ title: action === "approve" ? (lang === "ar" ? "✅ تمت الموافقة" : "✅ Approved") : (lang === "ar" ? "❌ تم الرفض" : "❌ Rejected") }), 0); } catch { toast({ title: lang === "ar" ? "فشل" : "Failed", variant: "destructive" }); }
@@ -1792,7 +2065,7 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
   const getDriverName = (d: any) => d?.user?.name || d?.name || (lang === "ar" ? "بدون اسم" : "No name");
   const getTripDriverName = (t: any) => { const drv = t.driver; if (!drv) return lang === "ar" ? "بدون سائق" : "No driver"; if (drv.user?.name) return drv.user.name; if (drv.name) return drv.name; return lang === "ar" ? "سائق" : "Driver"; };
 
-  const tabs = [{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang), badge: pendingDrivers.length }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "users", l: lang === "ar" ? "المستخدمون" : "Users" }, { id: "earnings", l: lang === "ar" ? "الإيرادات" : "Earnings" }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints", badge: complaints.length }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang), badge: cancellations.length }, { id: "unpaid", l: lang === "ar" ? "غير مدفوع" : "Unpaid" }];
+  const tabs = [{ id: "dashboard", l: t("admin.dashboard", lang) }, { id: "drivers", l: t("admin.drivers", lang), badge: pendingDrivers.length }, { id: "trips", l: t("admin.tripsTab", lang) }, { id: "users", l: lang === "ar" ? "المستخدمون" : "Users" }, { id: "earnings", l: lang === "ar" ? "الإيرادات" : "Earnings" }, { id: "pricing", l: lang === "ar" ? "الأسعار" : "Pricing" }, { id: "complaints", l: lang === "ar" ? "الشكاوى" : "Complaints", badge: complaints.length }, { id: "coupons", l: lang === "ar" ? "الكوبونات" : "Coupons" }, { id: "cancellations", l: t("admin.cancellations", lang), badge: cancellations.length }, { id: "unpaid", l: lang === "ar" ? "غير مدفوع" : "Unpaid" }, { id: "settings", l: lang === "ar" ? "الإعدادات" : "Settings" }];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -1938,6 +2211,34 @@ function AdminView({ user, lang }: { user: User | null; lang: Lang }) {
       {tab === "cancellations" && (<div className="space-y-3">{cancellations.map((c) => (<Card key={c.id} className="p-4 border-zinc-200"><div className="mb-3"><div className="font-bold text-black">{c.fromAddress} ← {c.toAddress}</div><div className="text-sm text-zinc-500">{c.cancellationReason}</div></div><div className="flex gap-2"><Button onClick={() => processCancellation(c.id, "approve")} className="bg-green-600 hover:bg-green-700 flex-1">{t("admin.approveCancel", lang)}</Button><Button onClick={() => processCancellation(c.id, "reject")} variant="outline" className="border-red-200 text-red-600 flex-1">{t("admin.rejectCancel", lang)}</Button></div></Card>))}{cancellations.length === 0 && <Card className="p-12 text-center text-zinc-500">{t("admin.noCancellations", lang)}</Card>}</div>)}
 
       {tab === "unpaid" && (<div className="space-y-3">{unpaidTrips.map((trip) => (<Card key={trip.id} className="p-4 border-zinc-200 border-red-200"><div className="mb-2"><div className="font-bold text-black">{trip.user?.name} - {trip.fromAddress} ← {trip.toAddress}</div><div className="text-sm text-red-600">⚠️ {lang === "ar" ? "غير مدفوع" : "Unpaid"}: {trip.unpaidAmount} ر.س</div></div></Card>))}{unpaidTrips.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد مبالغ غير مدفوعة" : "No unpaid"}</Card>}</div>)}
+
+      {tab === "pricing" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between"><h3 className="font-bold text-black text-lg">{lang === "ar" ? "أسعار الخدمات" : "Service Pricing"}</h3></div>
+          <div className="grid gap-4">
+            {pricing.map((p: any) => (
+              <Card key={p.id} className="p-4 border-zinc-200">
+                <div className="flex items-center justify-between mb-3"><h4 className="font-bold text-black">{p.name}</h4><Badge className={p.isActive ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500"}>{p.isActive ? (lang === "ar" ? "نشط" : "Active") : (lang === "ar" ? "غير نشط" : "Inactive")}</Badge></div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                  <div><Label className="text-zinc-500">{lang === "ar" ? "السعر الأساسي" : "Base Price"}</Label><Input type="number" value={p.basePrice} onChange={(e) => setPricing(prev => prev.map(x => x.id === p.id ? { ...x, basePrice: parseFloat(e.target.value) || 0 } : x))} className="mt-1" /></div>
+                  <div><Label className="text-zinc-500">{lang === "ar" ? "لكل كم" : "Per Km"}</Label><Input type="number" value={p.perKm} onChange={(e) => setPricing(prev => prev.map(x => x.id === p.id ? { ...x, perKm: parseFloat(e.target.value) || 0 } : x))} step="0.1" className="mt-1" /></div>
+                  <div><Label className="text-zinc-500">{lang === "ar" ? "لكل دقيقة" : "Per Min"}</Label><Input type="number" value={p.perMin} onChange={(e) => setPricing(prev => prev.map(x => x.id === p.id ? { ...x, perMin: parseFloat(e.target.value) || 0 } : x))} step="0.05" className="mt-1" /></div>
+                  <div><Label className="text-zinc-500">{lang === "ar" ? "الحد الأدنى" : "Min Price"}</Label><Input type="number" value={p.minPrice} onChange={(e) => setPricing(prev => prev.map(x => x.id === p.id ? { ...x, minPrice: parseFloat(e.target.value) || 0 } : x))} className="mt-1" /></div>
+                  <div><Label className="text-zinc-500">{lang === "ar" ? "المقاعد" : "Seats"}</Label><Input type="number" value={p.seats} onChange={(e) => setPricing(prev => prev.map(x => x.id === p.id ? { ...x, seats: parseInt(e.target.value) || 0 } : x))} className="mt-1" /></div>
+                </div>
+                <Button onClick={async () => {
+                  const res = await authFetch("/api/admin/pricing", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ serviceId: p.serviceId, basePrice: p.basePrice, perKm: p.perKm, perMin: p.perMin, minPrice: p.minPrice, seats: p.seats }) });
+                  if (res.ok) toast({ title: "✅ " + (lang === "ar" ? "تم الحفظ" : "Saved") });
+                  else toast({ title: "❌ " + (lang === "ar" ? "فشل" : "Failed"), variant: "destructive" });
+                }} className="w-full bg-black hover:bg-zinc-800 h-10 mt-2">{lang === "ar" ? "حفظ" : "Save"}</Button>
+              </Card>
+            ))}
+            {pricing.length === 0 && <Card className="p-12 text-center text-zinc-500">{lang === "ar" ? "لا توجد أسعار" : "No pricing data"}</Card>}
+          </div>
+        </div>
+      )}
+
+      {tab === "settings" && <AdminSettingsPanel user={user} lang={lang} />}
 
       <Dialog open={!!selectedDriver} onOpenChange={(o) => !o && setSelectedDriver(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

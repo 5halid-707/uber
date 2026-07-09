@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAuth } from "@/lib/auth";
 
 // GET /api/bank-accounts?userId=xxx
-// - Returns all bank/paypal accounts for the user
 export async function GET(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const userId = searchParams.get("userId") || authUser.userId;
+    if (userId !== authUser.userId && !authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     if (!userId) {
       return NextResponse.json({ error: "userId مطلوب" }, { status: 400 });
@@ -25,10 +29,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/bank-accounts
-// Body for bank: { userId, bankName, accountName, iban?, accountNumber?, isDefault? }
-// Body for paypal: { userId, accountType: "paypal", paypalEmail, accountName, isDefault? }
 export async function POST(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const body = await request.json();
     const {
       userId,
@@ -47,6 +52,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (userId !== authUser.userId && !authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) {

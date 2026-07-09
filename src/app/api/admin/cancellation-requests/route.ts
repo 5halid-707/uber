@@ -20,16 +20,17 @@ export async function GET(request: NextRequest) {
     const driverIds = [...new Set(tripsRaw.map((t) => t.driverId).filter(Boolean) as string[])];
     const drivers = driverIds.length
       ? await db.driver.findMany({
-          where: { id: { in: driverIds } },
+          where: { userId: { in: driverIds } },
           select: {
             id: true,
+            userId: true,
             carModel: true,
             carPlate: true,
             user: { select: { id: true, name: true, phone: true } },
           },
         })
       : [];
-    const driverMap = new Map(drivers.map((d) => [d.id, d]));
+    const driverMap = new Map(drivers.map((d) => [d.userId || d.id, d]));
     const trips = tripsRaw.map((t) => ({
       ...t,
       driver: t.driverId ? driverMap.get(t.driverId) ?? null : null,
@@ -75,14 +76,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Notify rider and driver
       const notifyTargets = [trip.userId];
       if (trip.driverId) {
-        const driver = await db.driver.findUnique({
-          where: { id: trip.driverId },
-          select: { userId: true },
-        });
-        if (driver) notifyTargets.push(driver.userId);
+        notifyTargets.push(trip.driverId);
       }
       await db.notification.createMany({
         data: notifyTargets.map((uid) => ({

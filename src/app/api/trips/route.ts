@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAuth } from "@/lib/auth";
+import { createTripSchema } from "@/lib/validation";
 
 // GET /api/trips?userId=xxx | ?driverId=xxx | ?activeOnly=true
 export async function GET(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const userId = searchParams.get("userId") || authUser.userId;
     const driverId = searchParams.get("driverId");
     const activeOnly = searchParams.get("activeOnly") === "true";
     const limit = parseInt(searchParams.get("limit") || "50");
+
+    if (userId && userId !== authUser.userId && !authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     const where: Record<string, unknown> = {};
     if (userId) where.userId = userId;
@@ -60,14 +67,14 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/trips
-// If tripId+action provided: update status (accept/complete/cancel)
-// Otherwise: create new trip
 export async function POST(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const body = await request.json();
     const { tripId, action } = body;
 
-    // === Status update branch ===
     if (tripId && action) {
       const trip = await db.trip.findUnique({ where: { id: tripId } });
       if (!trip) {
@@ -117,32 +124,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updated);
     }
 
-    // === Create new trip branch ===
-    const {
-      userId,
-      serviceType = "ride",
-      fromAddress,
-      toAddress,
-      distance = 0,
-      duration = 0,
-      price,
-      paymentMethod = "cash",
-      fromLat,
-      fromLng,
-      toLat,
-      toLng,
-      fromCity,
-      toCity,
-      surgeMultiplier = 1,
-      basePrice,
-    } = body;
-
-    if (!userId || !fromAddress || !toAddress) {
-      return NextResponse.json(
-        { error: "بيانات غير مكتملة: userId, fromAddress, toAddress مطلوبة" },
-        { status: 400 }
-      );
-    }
+    const parsed = createTripSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    const { userId, serviceType = "ride", fromAddress, toAddress, distance = 0, duration = 0, price, paymentMethod = "cash", fromLat, fromLng, toLat, toLng, fromCity, toCity, surgeMultiplier = 1, basePrice } = parsed.data;
+    if (userId !== authUser.userId && !authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     const finalPrice = typeof price === "number" ? price : 0;
 

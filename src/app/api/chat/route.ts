@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyAuth } from "@/lib/auth";
 
-// GET /api/chat?tripId=xxx&userId=xxx
-// - Returns messages for the trip
-// - Marks messages where receiverId == userId as read
 export async function GET(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const tripId = searchParams.get("tripId");
-    const userId = searchParams.get("userId");
+    const userId = searchParams.get("userId") || authUser.userId;
 
     if (!tripId) {
       return NextResponse.json({ error: "tripId مطلوب" }, { status: 400 });
     }
+    if (userId !== authUser.userId && !authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     const messages = await db.chatMessage.findMany({
       where: { tripId },
@@ -20,7 +22,6 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    // Mark messages sent to this user as read
     if (userId) {
       await db.chatMessage
         .updateMany({
@@ -37,10 +38,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/chat
-// Body: { tripId, senderId, receiverId, message, messageType?, fileData?, fileName? }
 export async function POST(request: NextRequest) {
   try {
+    const { user: authUser, error: authError } = verifyAuth(request);
+    if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
+
     const body = await request.json();
     const {
       tripId,
@@ -53,11 +55,9 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!tripId || !senderId || !receiverId) {
-      return NextResponse.json(
-        { error: "tripId, senderId, receiverId مطلوبة" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "tripId, senderId, receiverId مطلوبة" }, { status: 400 });
     }
+    if (senderId !== authUser.userId && receiverId !== authUser.userId && !authUser.isAdmin) return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
 
     if (messageType === "text" && (!message || !message.trim())) {
       return NextResponse.json({ error: "نص الرسالة مطلوب" }, { status: 400 });

@@ -1,20 +1,27 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { serviceTypes } from "@/lib/saudi-data";
 
-// GET /api/services
-// - Returns service types with features and pricing breakdown
 export async function GET() {
   try {
-    const services = serviceTypes.map((s) => ({
-      ...s,
-      features: buildServiceFeatures(s.id),
-      estimatedArrival: `${3 + Math.floor(Math.random() * 7)} دقائق`,
-    }));
+    let dbPrices = await db.servicePrice.findMany({ where: { isActive: true } }).catch(() => []);
+    const priceMap = new Map(dbPrices.map(p => [p.serviceId, p]));
 
-    return NextResponse.json({
-      services,
-      count: services.length,
+    const services = serviceTypes.map((s) => {
+      const dbp = priceMap.get(s.id);
+      return {
+        ...s,
+        basePrice: dbp?.basePrice ?? s.basePrice,
+        perKm: dbp?.perKm ?? s.perKm,
+        perMin: dbp?.perMin ?? s.perMin,
+        minPrice: dbp?.minPrice ?? s.minPrice,
+        seats: dbp?.seats ?? s.seats,
+        features: buildServiceFeatures(s.id),
+        estimatedArrival: `${3 + Math.floor(Math.random() * 7)} دقائق`,
+      };
     });
+
+    return NextResponse.json({ services, count: services.length });
   } catch (error) {
     console.error("GET /api/services error:", error);
     return NextResponse.json({ error: "حدث خطأ أثناء جلب الخدمات" }, { status: 500 });
