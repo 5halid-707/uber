@@ -87,6 +87,19 @@ export async function POST(request: NextRequest) {
       })
       .catch(() => {});
 
+    // Notify admins
+    const adminUsers = await db.user.findMany({ where: { isAdmin: true } });
+    if (adminUsers.length > 0) {
+      await db.notification.createMany({
+        data: adminUsers.map((a) => ({
+          userId: a.id,
+          title: "🚀 بدأت الرحلة",
+          message: `الرحلة ${trip.id}: ${trip.fromAddress} → ${trip.toAddress} - ${late.lateFee > 0 ? `رسوم انتظار ${late.lateFee} ر.س` : "بدون رسوم انتظار"}`,
+          type: "trip",
+        })),
+      });
+    }
+
     return NextResponse.json({ trip: updated, lateFee: late });
   } catch (error) {
     console.error("POST /api/trips/start error:", error);

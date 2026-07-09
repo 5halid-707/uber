@@ -89,6 +89,19 @@ export async function POST(request: NextRequest) {
       })
       .catch(() => {});
 
+    // Notify admins
+    const adminUsers = await db.user.findMany({ where: { isAdmin: true } });
+    if (adminUsers.length > 0) {
+      await db.notification.createMany({
+        data: adminUsers.map((a) => ({
+          userId: a.id,
+          title: "🚗 تم قبول رحلة",
+          message: `السائق ${driverData?.user?.name || "سائق"} قبل الرحلة ${trip.id}: ${trip.fromAddress} → ${trip.toAddress}`,
+          type: "trip",
+        })),
+      });
+    }
+
     return NextResponse.json(tripWithDriver);
   } catch (error) {
     console.error("POST /api/trips/accept error:", error);

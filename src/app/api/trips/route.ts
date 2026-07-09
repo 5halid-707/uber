@@ -173,6 +173,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Notify admins
+    const adminUsers = await db.user.findMany({ where: { isAdmin: true } });
+    if (adminUsers.length > 0) {
+      await db.notification.createMany({
+        data: adminUsers.map((a) => ({
+          userId: a.id,
+          title: "🚗 طلب رحلة جديد",
+          message: `طلب جديد من ${trip.user?.name || "مستخدم"} من ${fromAddress} إلى ${toAddress} بسعر ${finalPrice} ر.س`,
+          type: "trip",
+        })),
+      });
+    }
+
     return NextResponse.json(trip, { status: 201 });
   } catch (error) {
     console.error("POST /api/trips error:", error);
