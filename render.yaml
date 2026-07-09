@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: uber
+    runtime: node
+    plan: free
+    buildCommand: npm install --legacy-peer-deps && npm run build:prod
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false

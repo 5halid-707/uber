@@ -16,7 +16,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://uber-new-omega.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://uber-new-omega.vercel.app"),
   title: {
     default: "أوبر - منصة النقل والتوصيل الذكية",
     template: "%s | أوبر",
