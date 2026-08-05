@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS = {
   lateFeePerMin: 1,
   supportPhone: "0575015019",
   supportEmail: "support@uber.sa",
-  adminEmail: "grouthhacker@gmail.com",
+  adminEmail: "khalid-alharbi@zohomail.sa",
 };
 
 async function getSettings() {
@@ -30,7 +30,7 @@ async function getSettings() {
           "lateFeePerMin" DOUBLE PRECISION NOT NULL DEFAULT 1,
           "supportPhone" TEXT NOT NULL DEFAULT '0575015019',
           "supportEmail" TEXT NOT NULL DEFAULT 'support@uber.sa',
-          "adminEmail" TEXT NOT NULL DEFAULT 'grouthhacker@gmail.com',
+          "adminEmail" TEXT NOT NULL DEFAULT 'khalid-alharbi@zohomail.sa',
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);

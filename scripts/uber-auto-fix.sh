@@ -32,7 +32,7 @@ while true; do
   fi
   
   # 3. Check login API
-  LOGIN=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"identifier":"grouthhacker@gmail.com","password":"Admin@2026"}' --max-time 8 2>&1)
+  LOGIN=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"identifier":"khalid-alharbi@zohomail.sa","password":"Admin@2026"}' --max-time 8 2>&1)
   if ! echo "$LOGIN" | grep -q '"name"'; then
     echo "[$TS] RESTART: Login API failed" >> $LOG
     pkill -9 -f "next-server" 2>/dev/null

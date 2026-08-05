@@ -100,7 +100,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess, lang }: AuthDialogPr
             </Button>
             <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200 space-y-1">
               <p className="text-xs font-bold text-zinc-600 mb-1">{lang === "ar" ? "📋 حسابات تجريبية" : "📋 Test Accounts"}</p>
-              <p className="text-xs text-zinc-500">أدمن: grouthhacker@gmail.com / Admin@2026</p>
+              <p className="text-xs text-zinc-500">أدمن: khalid-alharbi@zohomail.sa / Admin@2026</p>
               <p className="text-xs text-zinc-500">راكب: saad@example.com / 123456</p>
               <p className="text-xs text-zinc-500">سائق: ahmed@driver.com / 123456</p>
             </div>

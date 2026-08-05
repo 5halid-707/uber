@@ -51,12 +51,12 @@ const envVars = {
   DATABASE_URL: "رابط قاعدة البيانات PostgreSQL من Neon",
   NEXTAUTH_SECRET: "مفتاع سري - احصل عليه من https://generate-secret.vercel.app",
   NEXTAUTH_URL: "رابط الموقع (https://your-app.vercel.app للإنتاج)",
-  ADMIN_EMAIL: "بريد الأدمن (grouthhacker@gmail.com)",
+  ADMIN_EMAIL: "بريد الأدمن (khalid-alharbi@zohomail.sa)",
   SMTP_HOST: "smtp.gmail.com",
   SMTP_PORT: "587",
-  SMTP_USER: "بريد Gmail (grouthhacker@gmail.com)",
+  SMTP_USER: "بريد Gmail (khalid-alharbi@zohomail.sa)",
   SMTP_PASS: "كلمة مرور التطبيق من Gmail (16 حرف بدون مسافات)",
-  SMTP_FROM: "بريد Gmail (grouthhacker@gmail.com)",
+  SMTP_FROM: "بريد Gmail (khalid-alharbi@zohomail.sa)",
 };
 
 for (const [key, desc] of Object.entries(envVars)) {

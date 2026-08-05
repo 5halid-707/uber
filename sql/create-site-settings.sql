@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS "SiteSettings" (
   "lateFeePerMin" DOUBLE PRECISION NOT NULL DEFAULT 1,
   "supportPhone" TEXT NOT NULL DEFAULT '0575015019',
   "supportEmail" TEXT NOT NULL DEFAULT 'support@uber.sa',
-  "adminEmail" TEXT NOT NULL DEFAULT 'grouthhacker@gmail.com',
+  "adminEmail" TEXT NOT NULL DEFAULT 'khalid-alharbi@zohomail.sa',
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

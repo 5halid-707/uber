@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: process.env.OWNER_EMAIL || "grouthhacker@gmail.com",
+          to: process.env.OWNER_EMAIL || "khalid-alharbi@zohomail.sa",
           subject: `🚨 شكوى جديدة: ${subject}`,
           message: complaintMsg,
         }),

@@ -17,7 +17,7 @@
 
 ## 📧 الخطوة 1: إعداد كلمة مرور التطبيق في Gmail (للبريد الإلكتروني)
 
-هذه الخطوة ضرورية ليتمكن الموقع من إرسال إيميلات (إشعارات المستخدمين الجدد، حالة التحويلات) من بريدك grouthhacker@gmail.com.
+هذه الخطوة ضرورية ليتمكن الموقع من إرسال إيميلات (إشعارات المستخدمين الجدد، حالة التحويلات) من بريدك khalid-alharbi@zohomail.sa.
 
 ### الطريقة:
 
@@ -60,7 +60,7 @@
 ## 🔐 الخطوة 3: إعداد Google OAuth (لتسجيل الدخول بحساب Google)
 
 1. **افتح**: https://console.cloud.google.com
-2. **سجّل الدخول ببريدك** grouthhacker@gmail.com
+2. **سجّل الدخول ببريدك** khalid-alharbi@zohomail.sa
 3. **أنشئ مشروع جديد**:
    - اضغط على شعار المشروع في الأعلى → "New Project"
    - الاسم: `Haraj Auth`
@@ -76,7 +76,7 @@
    - إذا طُلب منك إعداد شاشة الموافقة:
      - اضغط "Configure Consent Screen"
      - اختر "External"
-     - املأ: اسم التطبيق `حراج`، بريد الدعم `grouthhacker@gmail.com`
+     - املأ: اسم التطبيق `حراج`، بريد الدعم `khalid-alharbi@zohomail.sa`
      - أضف نطاقات: `gmail.com`
      - احفظ
    - اختر نوع: **Web Application**
@@ -124,12 +124,12 @@
    | `DATABASE_URL` | (رابط PostgreSQL من Neon - الخطوة 2) |
    | `NEXTAUTH_URL` | `https://YOUR-APP-NAME.vercel.app` (ستحدّثه بعد النشر) |
    | `NEXTAUTH_SECRET` | (انسخ من: https://generate-secret.vercel.app) |
-   | `ADMIN_EMAIL` | `grouthhacker@gmail.com` |
+   | `ADMIN_EMAIL` | `khalid-alharbi@zohomail.sa` |
    | `SMTP_HOST` | `smtp.gmail.com` |
    | `SMTP_PORT` | `587` |
-   | `SMTP_USER` | `grouthhacker@gmail.com` |
+   | `SMTP_USER` | `khalid-alharbi@zohomail.sa` |
    | `SMTP_PASS` | (كلمة مرور التطبيق من الخطوة 1 - بدون مسافات) |
-   | `SMTP_FROM` | `grouthhacker@gmail.com` |
+   | `SMTP_FROM` | `khalid-alharbi@zohomail.sa` |
    | `GOOGLE_CLIENT_ID` | (من الخطوة 3) |
    | `GOOGLE_CLIENT_SECRET` | (من الخطوة 3) |
 
@@ -184,7 +184,7 @@
 
 1. **افتح رابط موقعك**: `https://haraj-xxx.vercel.app`
 2. **سجّل الدخول كأدمن**:
-   - البريد: `grouthhacker@gmail.com`
+   - البريد: `khalid-alharbi@zohomail.sa`
    - كلمة المرور: `123456`
 3. **تحقق من الميزات**:
    - ✅ تسجيل الدخول يعمل
@@ -194,7 +194,7 @@
 
 4. **اختبر تسجيل مستخدم جديد**:
    - سجل مستخدم جديد بأي بريد
-   - ✅ يجب أن يصلك إيميل على `grouthhacker@gmail.com` بإشعار "مستخدم جديد سجّل في حراج"
+   - ✅ يجب أن يصلك إيميل على `khalid-alharbi@zohomail.sa` بإشعار "مستخدم جديد سجّل في حراج"
 
 5. **اختبر تسجيل الدخول بـ Google**:
    - اضغط "متابعة بحساب Google"
@@ -249,7 +249,7 @@
 ### المشكلة: لا تصلك الإيميلات
 **الحل**:
 - تأكد من كلمة مرور التطبيق (16 حرف بدون مسافات)
-- تأكد أن `SMTP_USER` = `SMTP_FROM` = `grouthhacker@gmail.com`
+- تأكد أن `SMTP_USER` = `SMTP_FROM` = `khalid-alharbi@zohomail.sa`
 - تحقق من مجلد Spam
 
 ### المشكلة: خطأ في قاعدة البيانات "relation does not exist"
@@ -280,7 +280,7 @@
 
 وأنت (الأدمن) تتحكم في كل شيء من:
 - 🔔 جرس الإشعارات (يصلك إشعار بكل مستخدم جديد)
-- 📧 بريدك grouthhacker@gmail.com (يصلك إيميل بكل تسجيل)
+- 📧 بريدك khalid-alharbi@zohomail.sa (يصلك إيميل بكل تسجيل)
 - 🛡️ لوحة تحكم الأدمن (إدارة كاملة)
 
 ---

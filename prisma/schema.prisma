@@ -234,7 +234,7 @@ model SiteSettings {
   lateFeePerMin   Float   @default(1)
   supportPhone    String  @default("0575015019")
   supportEmail    String  @default("support@uber.sa")
-  adminEmail      String  @default("grouthhacker@gmail.com")
+  adminEmail      String  @default("khalid-alharbi@zohomail.sa")
   updatedAt       DateTime @updatedAt
 }
 

@@ -30,7 +30,7 @@ echo ""
 # 3. API tests
 echo "📌 3. اختبار APIs"
 APIS=(
-  "POST|/api/auth/login|{\"identifier\":\"grouthhacker@gmail.com\",\"password\":\"Admin@2026\"}"
+  "POST|/api/auth/login|{\"identifier\":\"khalid-alharbi@zohomail.sa\",\"password\":\"Admin@2026\"}"
   "GET|/api/cities|"
   "GET|/api/services|"
   "GET|/api/admin/stats|"

@@ -8,11 +8,11 @@ async function main() {
   const adminHash = await bcrypt.hash("Admin@2026", 10);
 
   const admin = await db.user.upsert({
-    where: { email: "grouthhacker@gmail.com" },
+    where: { email: "khalid-alharbi@zohomail.sa" },
     update: { password: adminHash, isAdmin: true, isVerified: true },
     create: {
       name: "المالك",
-      email: "grouthhacker@gmail.com",
+      email: "khalid-alharbi@zohomail.sa",
       phone: "0500000000",
       password: adminHash,
       isAdmin: true,
@@ -70,7 +70,7 @@ async function main() {
   console.log("✅ Driver profile created");
 
   console.log("\n--- Accounts ---");
-  console.log("Admin:  grouthhacker@gmail.com / Admin@2026");
+  console.log("Admin:  khalid-alharbi@zohomail.sa / Admin@2026");
   console.log("Rider:  saad@example.com / 123456");
   console.log("Driver: ahmed@driver.com / 123456");
 }

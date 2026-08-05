@@ -182,5 +182,5 @@ export async function getAdminEmail(): Promise<string> {
     const settings = await db.siteSettings.findFirst();
     if (settings?.adminEmail) return settings.adminEmail;
   } catch {}
-  return process.env.ADMIN_EMAIL || "grouthhacker@gmail.com";
+  return process.env.ADMIN_EMAIL || "khalid-alharbi@zohomail.sa";
 }

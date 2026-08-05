@@ -25,7 +25,7 @@ if ! grep -q "NEXTAUTH_SECRET" .env 2>/dev/null; then
   echo "DATABASE_URL=file:/home/z/my-project/db/custom.db
 NEXTAUTH_SECRET=\"super-secret-key-2026\"
 NEXTAUTH_URL=\"http://localhost:3000\"
-OWNER_EMAIL=\"grouthhacker@gmail.com\"" > .env
+OWNER_EMAIL=\"khalid-alharbi@zohomail.sa\"" > .env
   echo "   ✅ تم إنشاء .env" >> $LOG
 fi
 
@@ -80,7 +80,7 @@ test_api() {
   fi
 }
 
-R=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"identifier":"grouthhacker@gmail.com","password":"Admin@2026"}' --max-time 10 2>&1)
+R=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"identifier":"khalid-alharbi@zohomail.sa","password":"Admin@2026"}' --max-time 10 2>&1)
 test_api "Login (owner)" "$R"
 
 R=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"identifier":"saad@example.com","password":"123456"}' --max-time 10 2>&1)
@@ -153,7 +153,7 @@ echo "   Watchdog: ✅ يعمل"
 echo "================================================"
 echo ""
 echo "🔑 حسابات للتجربة:"
-echo "   المالك: grouthhacker@gmail.com / Admin@2026"
+echo "   المالك: khalid-alharbi@zohomail.sa / Admin@2026"
 echo "   راكب: saad@example.com / 123456"
 echo "   سائق: ahmed@driver.com / 123456"
 echo ""
