@@ -1,17 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "maps.googleapis.com" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
-      { protocol: "https", hostname: "ui-avatars.com" },
-      { protocol: "https", hostname: "api.dicebear.com" },
-    ],
+  output: "standalone",
+  typescript: { ignoreBuildErrors: true },
+  reactStrictMode: false,
+  env: {
+    DATABASE_URL: process.env.DATABASE_URL || "file:/tmp/uber.db",
   },
 };
 

@@ -1,8 +1,10 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET /api/users/location?userId=xxx
 export async function GET(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
 // POST /api/users/location
 // Body: { userId, lat, lng }
 export async function POST(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const body = await request.json();
     const { userId, lat, lng } = body;

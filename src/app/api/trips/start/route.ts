@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
@@ -34,6 +35,7 @@ function computeLateFee(trip: {
 // - Status must be "driver_arrived"
 // - Calculate late fee, set status -> "ongoing", cancellationLocked=true
 export async function POST(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const body = await request.json();
     const { tripId, driverId } = body;

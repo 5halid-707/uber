@@ -1,9 +1,11 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET /api/drivers/register?userId=xxx
 // - Returns driver with documents
 export async function GET(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
 // - Creates or updates driver record (if exists and pending, allow re-submit)
 // - Marks user.isDriver = true
 export async function POST(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const body = await request.json();
     const {

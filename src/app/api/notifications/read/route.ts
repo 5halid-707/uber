@@ -1,8 +1,10 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyAuth } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { user, error } = verifyAuth(req);
     if (!user) return NextResponse.json({ error: error || "غير مصرح" }, { status: 401 });

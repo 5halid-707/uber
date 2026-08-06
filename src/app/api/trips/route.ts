@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyAuth } from "@/lib/auth";
@@ -5,6 +6,7 @@ import { createTripSchema } from "@/lib/validation";
 
 // GET /api/trips?userId=xxx | ?driverId=xxx | ?activeOnly=true
 export async function GET(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { user: authUser, error: authError } = verifyAuth(request);
     if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });
@@ -68,6 +70,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/trips
 export async function POST(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { user: authUser, error: authError } = verifyAuth(request);
     if (!authUser) return NextResponse.json({ error: authError || "غير مصرح" }, { status: 401 });

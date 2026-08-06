@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { verifyAuth } from "@/lib/auth";
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+  try { await initDb(); } catch(e) {}
   const { user, error } = verifyAuth(req);
   if (!user) return new Response("Unauthorized", { status: 401 });
 

@@ -1,19 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npm run build:prod",
-  "installCommand": "npm install --legacy-peer-deps",
-  "github": {
-    "silent": true
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-Auth-Token" }
-      ]
-    }
-  ]
+  "buildCommand": "prisma generate && next build",
+  "installCommand": "npm install --legacy-peer-deps"
 }

@@ -1,8 +1,10 @@
+import { initDb } from "@/lib/init-db";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serviceTypes } from "@/lib/saudi-data";
 
 export async function GET() {
+  try { await initDb(); } catch(e) {}
   try {
     let dbPrices = await db.servicePrice.findMany({ where: { isActive: true } }).catch(() => []);
     const priceMap = new Map(dbPrices.map(p => [p.serviceId, p]));

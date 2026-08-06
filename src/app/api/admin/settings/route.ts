@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyAdmin } from "@/lib/auth";
@@ -42,6 +43,7 @@ async function getSettings() {
 }
 
 export async function GET(req: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { user, error } = verifyAdmin(req);
     if (!user) return NextResponse.json({ error: error || "غير مصرح" }, { status: 401 });
@@ -54,6 +56,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { user, error } = verifyAdmin(req);
     if (!user) return NextResponse.json({ error: error || "غير مصرح" }, { status: 401 });

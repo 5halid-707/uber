@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
@@ -6,6 +7,7 @@ import { db } from "@/lib/db";
 // - Set status -> "driver_arrived", driverArrivedAt = now
 // - Create notification for rider
 export async function POST(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const body = await request.json();
     const { tripId, driverId } = body;

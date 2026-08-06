@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
@@ -5,6 +6,7 @@ import { verifyAuth, signToken } from "@/lib/auth";
 
 // GET /api/users/me?userId=xxx
 export async function GET(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId") || request.headers.get("x-user-id");
@@ -42,6 +44,7 @@ export async function GET(request: NextRequest) {
 
 // PATCH /api/users/me
 export async function PATCH(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const authResult = verifyAuth(request);
     if (!authResult.user) {

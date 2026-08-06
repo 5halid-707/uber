@@ -1,9 +1,11 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET /api/drivers?online=true
 // - Returns approved drivers (optionally only online ones)
 export async function GET(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { searchParams } = new URL(request.url);
     const online = searchParams.get("online");
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
 // Body: { driverId, isOnline }  (driverId here is the userId)
 // - Toggles online status
 export async function PATCH(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const body = await request.json();
     const { driverId, isOnline } = body;

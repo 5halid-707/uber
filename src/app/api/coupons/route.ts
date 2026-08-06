@@ -1,8 +1,10 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET: Get user's coupons
 export async function GET(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
@@ -20,6 +22,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Apply coupon to user's account (admin or auto)
 export async function POST(request: NextRequest) {
+  try { await initDb(); } catch(e) {}
   try {
     const body = await request.json();
     const { code, userId } = body;

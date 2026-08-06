@@ -1,3 +1,4 @@
+import { initDb } from "@/lib/init-db";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -6,6 +7,8 @@ import { sendEmail, welcomeEmail, getAdminEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
+    try { await initDb(); } catch(e) {}
+
     const body = await req.json();
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
