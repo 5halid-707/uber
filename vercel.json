@@ -1,6 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "prisma generate && next build",
+  "buildCommand": "DATABASE_URL=file:/tmp/uber.db prisma generate && DATABASE_URL=file:/tmp/uber.db next build",
   "installCommand": "npm install --legacy-peer-deps"
 }
