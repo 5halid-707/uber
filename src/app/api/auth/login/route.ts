@@ -56,6 +56,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
+    return NextResponse.json({ error: "خطأ في الخادم", detail: String(error).substring(0, 300) }, { status: 500 });
   }
 }
