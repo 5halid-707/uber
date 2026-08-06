@@ -5,9 +5,10 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 const dbUrl = process.env.DATABASE_URL || 'file:/tmp/uber.db'
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = dbUrl
-}
+process.env.DATABASE_URL = dbUrl
 
-export const db = globalForPrisma.prisma ?? new PrismaClient({ log: ['error'] })
+export const db = globalForPrisma.prisma ?? new PrismaClient({
+  log: ['error'],
+  datasources: { db: { url: dbUrl } },
+})
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
